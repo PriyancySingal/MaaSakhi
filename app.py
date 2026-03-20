@@ -6,7 +6,8 @@
 
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
-from config import PORT, DEBUG
+from config import PORT, DEBUG, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN
+from voice import transcribe_voice_note
 from analyzer import analyze
 from alerts import save_alert, get_alert_count
 from dashboard import render_dashboard
@@ -22,8 +23,30 @@ user_profiles = {}
 
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_reply():
-    incoming_msg = request.values.get("Body", "").strip()
-    sender       = request.values.get("From", "")
+    incoming_msg  = request.values.get("Body", "").strip()
+    sender        = request.values.get("From", "")
+    num_media     = int(request.values.get("NumMedia", 0))
+    media_url     = request.values.get("MediaUrl0", "")
+    media_type    = request.values.get("MediaContentType0", "")
+
+    # Handle voice notes
+    if num_media > 0 and "audio" in media_type:
+        transcribed = transcribe_voice_note(
+            media_url,
+            TWILIO_ACCOUNT_SID,
+            TWILIO_AUTH_TOKEN
+        )
+        if transcribed:
+            incoming_msg = transcribed
+        else:
+            # Could not transcribe — ask user to type
+            response = MessagingResponse()
+            response.message().body(
+                "Maafi chahti hoon — main aapka voice note samajh nahi payi. 🙏\n"
+                "Kya aap apna symptom type karke bhej sakti hain?\n"
+                "Please type your symptom in text."
+            )
+            return str(response)
     response     = MessagingResponse()
     msg          = response.message()
 

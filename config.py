@@ -4,6 +4,9 @@ import os
 TWILIO_ACCOUNT_SID     = os.environ.get("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN      = os.environ.get("TWILIO_AUTH_TOKEN", "")
 TWILIO_WHATSAPP_NUMBER = "whatsapp:+14155238886"
+PORT                   = int(os.environ.get("PORT", 5000))
+DEBUG                  = os.environ.get("DEBUG", "True") == "True"
+ASHA_WORKER_NUMBER     = os.environ.get("ASHA_NUMBER", "")
 
 # App settings
 DEBUG = os.environ.get("DEBUG", "True") == "True"
