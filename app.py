@@ -1,0 +1,152 @@
+# ─────────────────────────────────────────────────────────────────
+# MaaSakhi — Main Application
+# WhatsApp Maternal Health Bot for Rural India
+# Built for WitchHunt Hackathon 2026
+# ─────────────────────────────────────────────────────────────────
+
+from flask import Flask, request
+from twilio.twiml.messaging_response import MessagingResponse
+from config import PORT, DEBUG
+from analyzer import analyze
+from alerts import save_alert, get_alert_count
+from dashboard import render_dashboard
+
+app = Flask(__name__)
+
+# In-memory patient storage
+# In production: replace with a database
+user_profiles = {}
+
+
+# ── WhatsApp Bot ──────────────────────────────────────────────────
+
+@app.route("/whatsapp", methods=["POST"])
+def whatsapp_reply():
+    incoming_msg = request.values.get("Body", "").strip()
+    sender       = request.values.get("From", "")
+    response     = MessagingResponse()
+    msg          = response.message()
+
+    # Register new user
+    if sender not in user_profiles:
+        user_profiles[sender] = {
+            "step": "welcome",
+            "name": "",
+            "week": 0
+        }
+
+    user = user_profiles[sender]
+
+    # ── Registration Flow ─────────────────────────────────────────
+
+    if incoming_msg.lower() in ["register", "register pregnancy",
+                                 "hello", "hi", "start", "namaste"]:
+        user["step"] = "get_name"
+        msg.body(
+            "🌸 Namaste! Welcome to MaaSakhi — aapki maternal health companion!\n\n"
+            "Main aapki pregnancy mein har kadam pe saath rahungi. 💚\n\n"
+            "Pehle mujhe apna naam batao:\n"
+            "Please tell me your name:"
+        )
+
+    elif user["step"] == "get_name":
+        user["name"] = incoming_msg
+        user["step"] = "get_week"
+        msg.body(
+            f"Namaste {user['name']}! 🙏\n\n"
+            f"Aap kitne hafte ki pregnant hain?\n"
+            f"How many weeks pregnant are you?\n\n"
+            f"Sirf number bhejiye — just type the number\n"
+            f"Example: 26"
+        )
+
+    elif user["step"] == "get_week":
+        try:
+            user["week"] = int(incoming_msg)
+            user["step"] = "registered"
+
+            # Give first weekly tip on registration
+            _, tip_msg, _ = analyze("tip", user["week"])
+
+            msg.body(
+                f"✅ Aap registered hain, {user['name']}!\n\n"
+                f"Aap week {user['week']} mein hain. "
+                f"Main aapke saath hoon 24/7. 💚\n\n"
+                f"{tip_msg}\n\n"
+                f"Koi bhi symptom feel ho — bas mujhe message karo. "
+                f"Main hamesha yahan hoon! 🌸"
+            )
+        except ValueError:
+            msg.body(
+                "Sirf number bhejiye please.\n"
+                "Just type the number. Example: 26"
+            )
+
+    # ── Symptom Analysis ──────────────────────────────────────────
+
+    elif user["step"] == "registered":
+        level, reply, alert_needed = analyze(incoming_msg, user["week"])
+
+        if level == "RED":
+            full_reply = (
+                f"{reply}\n\n"
+                f"Aapki ASHA worker ko alert kar diya gaya hai.\n"
+                f"Please go to your nearest health centre immediately. 🏥"
+            )
+            save_alert(user["name"], user["week"], incoming_msg, sender)
+
+        elif level == "AMBER":
+            full_reply = (
+                f"{reply}\n\n"
+                f"Agar 24 ghante mein better na ho — mujhe zaroor batana. 💛"
+            )
+
+        elif level == "MYTH":
+            full_reply = reply
+
+        elif level == "TIP":
+            full_reply = (
+                f"{reply}\n\n"
+                f"Koi symptom feel ho toh mujhe batao! 🌸"
+            )
+
+        else:
+            full_reply = (
+                f"{reply}\n\n"
+                f"Paani piyen, rest karein, aur iron ki goli lena mat bhoolein! 💚"
+            )
+
+        msg.body(full_reply)
+
+    else:
+        msg.body(
+            "Namaste! 'Register' ya 'Hello' type karke shuru karein.\n"
+            "Type 'Register' to get started with MaaSakhi 🌸"
+        )
+
+    return str(response)
+
+
+# ── ASHA Dashboard ────────────────────────────────────────────────
+
+@app.route("/dashboard")
+def dashboard():
+    total     = sum(1 for p in user_profiles.values() if p.get("step") == "registered")
+    high_risk = get_alert_count()
+    safe      = max(total - high_risk, 0)
+    return render_dashboard(user_profiles, high_risk, total, safe)
+
+
+# ── Health Check ──────────────────────────────────────────────────
+
+@app.route("/")
+def home():
+    return "🌸 MaaSakhi is running! Visit /dashboard for the ASHA worker dashboard."
+
+
+# ── Run ───────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    import os
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
