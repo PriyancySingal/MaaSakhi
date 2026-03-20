@@ -3,7 +3,7 @@
 # Powered by Groq AI (Llama 3) — FREE, fast, no credit card
 # Backed by WHO + NHM + FOGSI medical guidelines
 # ─────────────────────────────────────────────────────────────────
-
+import os
 from groq import Groq
 from symptoms import WHO_DANGER_SIGNS, NHM_MODERATE_SIGNS
 from myths import PREGNANCY_MYTHS
