@@ -14,43 +14,40 @@ from dashboard import render_dashboard
 
 app = Flask(__name__)
 
-# In-memory patient storage
-# In production: replace with a database
 user_profiles = {}
 
 
-# ── WhatsApp Bot ──────────────────────────────────────────────────
-
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_reply():
-    incoming_msg  = request.values.get("Body", "").strip()
-    sender        = request.values.get("From", "")
-    num_media     = int(request.values.get("NumMedia", 0))
-    media_url     = request.values.get("MediaUrl0", "")
-    media_type    = request.values.get("MediaContentType0", "")
-
-    # Handle voice notes
-    if num_media > 0 and "audio" in media_type:
-        transcribed = transcribe_voice_note(
-            media_url,
-            TWILIO_ACCOUNT_SID,
-            TWILIO_AUTH_TOKEN
-        )
-        if transcribed:
-            incoming_msg = transcribed
-        else:
-            # Could not transcribe — ask user to type
-            response = MessagingResponse()
-            response.message().body(
-                "Maafi chahti hoon — main aapka voice note samajh nahi payi. 🙏\n"
-                "Kya aap apna symptom type karke bhej sakti hain?\n"
-                "Please type your symptom in text."
-            )
-            return str(response)
+    incoming_msg = request.values.get("Body", "").strip()
+    sender       = request.values.get("From", "")
     response     = MessagingResponse()
     msg          = response.message()
 
-    # Register new user
+    # ── Handle voice notes safely ─────────────────────────────────
+    try:
+        num_media  = int(request.values.get("NumMedia", 0))
+        media_url  = request.values.get("MediaUrl0", "")
+        media_type = request.values.get("MediaContentType0", "")
+
+        if num_media > 0 and media_url and media_type and "audio" in media_type:
+            transcribed = transcribe_voice_note(
+                media_url,
+                TWILIO_ACCOUNT_SID,
+                TWILIO_AUTH_TOKEN
+            )
+            if transcribed:
+                incoming_msg = transcribed
+            else:
+                msg.body(
+                    "Maafi chahti hoon — main aapka voice note samajh nahi payi. 🙏\n"
+                    "Please type your symptom in text."
+                )
+                return str(response)
+    except Exception as e:
+        print(f"Voice handling error: {e}")
+
+    # ── Register new user ─────────────────────────────────────────
     if sender not in user_profiles:
         user_profiles[sender] = {
             "step": "welcome",
@@ -61,7 +58,6 @@ def whatsapp_reply():
     user = user_profiles[sender]
 
     # ── Registration Flow ─────────────────────────────────────────
-
     if incoming_msg.lower() in ["register", "register pregnancy",
                                  "hello", "hi", "start", "namaste"]:
         user["step"] = "get_name"
@@ -87,10 +83,7 @@ def whatsapp_reply():
         try:
             user["week"] = int(incoming_msg)
             user["step"] = "registered"
-
-            # Give first weekly tip on registration
             _, tip_msg, _ = analyze("tip", user["week"])
-
             msg.body(
                 f"✅ Aap registered hain, {user['name']}!\n\n"
                 f"Aap week {user['week']} mein hain. "
@@ -106,7 +99,6 @@ def whatsapp_reply():
             )
 
     # ── Symptom Analysis ──────────────────────────────────────────
-
     elif user["step"] == "registered":
         level, reply, alert_needed = analyze(incoming_msg, user["week"])
 
@@ -151,7 +143,6 @@ def whatsapp_reply():
 
 
 # ── ASHA Dashboard ────────────────────────────────────────────────
-
 @app.route("/dashboard")
 def dashboard():
     total     = sum(1 for p in user_profiles.values() if p.get("step") == "registered")
@@ -161,15 +152,14 @@ def dashboard():
 
 
 # ── Health Check ──────────────────────────────────────────────────
-
 @app.route("/")
 def home():
     return "🌸 MaaSakhi is running! Visit /dashboard for the ASHA worker dashboard."
 
 
 # ── Run ───────────────────────────────────────────────────────────
-
 if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
