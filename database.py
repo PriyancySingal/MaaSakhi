@@ -250,7 +250,7 @@ def save_asha_alert_db(phone, name, week, symptom):
         print(f"Database save_asha_alert error: {e}")
 
 
-def get_all_asha_alerts():
+def get_all_asha_alerts(asha_id="asha_1"):
     """Get all ASHA alerts from database."""
     if not engine:
         return []
@@ -258,7 +258,11 @@ def get_all_asha_alerts():
         with engine.connect() as conn:
             results = conn.execute(
                 text("""
-                    SELECT * FROM asha_alerts
+                    SELECT a.*
+                    FROM asha_alerts a
+                    JOIN patients p ON a.phone = p.phone
+                    WHERE p.asha_id = :asha_id
+                    ORDER BY a.created_at DESC
                     ORDER BY created_at DESC
                 """)
             ).fetchall()
