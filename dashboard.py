@@ -4,7 +4,7 @@
 # ─────────────────────────────────────────────────────────────────
 
 from flask import render_template_string
-from alerts import get_all_alerts
+
 
 
 DASHBOARD_HTML = """
