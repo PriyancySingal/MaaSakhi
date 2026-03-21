@@ -1,16 +1,14 @@
 # ─────────────────────────────────────────────────────────────────
 # MaaSakhi Pregnancy Progress Tracker
-# Personalized weekly milestone updates
+# Generates PERSONALIZED updates based on woman's actual health log
 # Source: WHO ANC 2016 + NHM India + Mayo Clinic Pregnancy Guide
 # ─────────────────────────────────────────────────────────────────
 
 import os
 from groq import Groq
+from health_log import get_health_log, get_risk_score, get_symptom_pattern
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
-
-# ── Baby size comparisons by week ─────────────────────────────────
-# Makes it relatable and fun for rural Indian women
 
 BABY_SIZE = {
     4:  ("poppy seed", "khus khus ka beej", "0.1 cm"),
@@ -52,35 +50,42 @@ BABY_SIZE = {
     40: ("jackfruit", "kathal", "51.2 cm"),
 }
 
-# ── Key milestones by week ────────────────────────────────────────
-
 MILESTONES = {
     6:  "Baby's heart starts beating! 💗",
     8:  "All major organs are forming!",
     10: "Baby can now make tiny movements!",
-    12: "First trimester complete! Risk of miscarriage drops significantly.",
+    12: "First trimester complete! Risk drops significantly.",
     16: "Baby can hear your voice now! Talk and sing to them. 🎵",
     18: "Baby's gender can be seen on ultrasound now.",
-    20: "Halfway there! You may start feeling movements soon.",
+    20: "Halfway there! You may start feeling movements.",
     24: "Baby's face is fully formed with eyebrows and eyelashes!",
     28: "Third trimester begins! Baby can open their eyes.",
     32: "Baby is practicing breathing movements!",
-    36: "Baby is considered early term. Could arrive any time now!",
+    36: "Baby is considered early term!",
     37: "Baby is full term! 🎉",
     40: "Due date! Your baby is ready to meet you! 🌸",
 }
 
 
-def get_progress_update(week, name, language="Hindi"):
+def get_progress_update(week, name, phone, language="Hindi"):
     """
-    Generates a personalized pregnancy progress update
-    for the woman's current week using Groq AI.
+    Generates PERSONALIZED progress update using:
+    - Woman's actual symptom history
+    - Her real risk score
+    - WHO + NHM weekly guidelines
     """
-    # Get baby size info
-    closest_week = min(BABY_SIZE.keys(), key=lambda x: abs(x - week))
-    english_size, hindi_size, length = BABY_SIZE[closest_week]
 
-    # Check for milestone
+    # Get her real health data
+    score, risk_level, summary   = get_risk_score(phone)
+    symptom_pattern              = get_symptom_pattern(phone)
+    log                          = get_health_log(phone)
+    total_reports                = len(log)
+
+    # Get baby size
+    closest_week   = min(BABY_SIZE.keys(), key=lambda x: abs(x - week))
+    eng_size, hindi_size, length = BABY_SIZE[closest_week]
+
+    # Get milestone
     milestone = ""
     for m_week, m_text in MILESTONES.items():
         if abs(week - m_week) <= 1:
@@ -90,30 +95,46 @@ def get_progress_update(week, name, language="Hindi"):
     try:
         client = Groq(api_key=GROQ_API_KEY)
 
-        prompt = f"""You are MaaSakhi, a warm maternal health companion for Indian women.
+        prompt = f"""You are MaaSakhi, a warm and caring maternal health 
+companion for Indian women.
 
-Generate a personalized pregnancy progress update for:
-- Woman's name: {name}
+Generate a PERSONALIZED pregnancy progress update for this specific woman:
+
+WOMAN'S PROFILE:
+- Name: {name}
 - Current week: {week}
-- Baby size this week: like a {english_size} ({hindi_size}) — {length} long
-- Special milestone this week: {milestone if milestone else "steady growth"}
+- Total symptom reports submitted: {total_reports}
+- Overall risk score: {score}/100
+- Risk level: {risk_level}
 
-Reply in {language} language.
+HER ACTUAL SYMPTOM HISTORY:
+{symptom_pattern}
 
-Include in your response:
-1. Warm greeting using her name
-2. Baby size comparison using the Indian fruit/vegetable name
-3. What is developing in baby this week (1-2 interesting facts)
-4. One specific thing she should do this week (from WHO/NHM guidelines)
-5. One warning sign specific to this week to watch for
-6. Encouraging closing line
+BABY THIS WEEK:
+- Size: like a {hindi_size} ({eng_size}) — {length} long
+- Milestone: {milestone if milestone else "steady healthy growth"}
 
-Keep it warm, simple, and personal. Max 8 lines.
-Use emoji naturally. Make her feel special and cared for."""
+YOUR TASK:
+Write a warm personalized update that:
+1. Greets her by name warmly
+2. Mentions her baby's size using the Indian comparison
+3. Acknowledges her specific symptom history — if she had RED symptoms 
+   recently, express concern and remind her to stay vigilant. If all GREEN,
+   praise her for staying healthy.
+4. Give her ONE specific advice based on her risk level:
+   - HIGH risk: urge immediate ANC checkup
+   - MODERATE risk: monitor closely, visit ASHA worker this week
+   - LOW risk: keep up the good work, routine checkup reminder
+5. Share the baby milestone if there is one
+6. End with an encouraging personal message
+
+Reply in {language} language only.
+Be warm, personal, and caring — like a trusted friend who knows her story.
+Max 10 lines. Use emoji naturally."""
 
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            max_tokens=400,
+            max_tokens=500,
             temperature=0.4,
             messages=[{"role": "user", "content": prompt}]
         )
@@ -122,37 +143,42 @@ Use emoji naturally. Make her feel special and cared for."""
 
     except Exception as e:
         print(f"Tracker error: {e}")
-        return get_fallback_update(week, name, english_size,
-                                   hindi_size, length, milestone)
+        return get_fallback_update(
+            week, name, eng_size,
+            hindi_size, length,
+            milestone, risk_level, score
+        )
 
 
-def get_fallback_update(week, name, eng_size,
-                        hindi_size, length, milestone):
-    """Fallback update if AI fails."""
+def get_fallback_update(week, name, eng_size, hindi_size,
+                        length, milestone, risk_level, score):
+    risk_advice = {
+        "HIGH":     "⚠️ Please visit your doctor or health centre this week.",
+        "MODERATE": "🟡 Please visit your ASHA worker this week.",
+        "LOW":      "✅ Keep up the great work!"
+    }
     return (
         f"🌸 Week {week} Update for {name}!\n\n"
         f"Your baby is now the size of a {hindi_size} "
         f"({eng_size}) — about {length} long!\n\n"
         f"{milestone}\n\n"
-        f"Keep taking your iron and folic acid tablets daily.\n"
-        f"Drink plenty of water and rest well.\n\n"
-        f"You are doing amazingly! 💚\n"
-        f"Source: WHO ANC Guidelines 2016"
+        f"Your health risk score: {score}/100 ({risk_level} risk)\n"
+        f"{risk_advice.get(risk_level, '')}\n\n"
+        f"Keep taking iron and folic acid daily. 💚\n"
+        f"Source: WHO ANC Guidelines 2016 + NHM India"
     )
 
-
-# ── Trigger words that activate the tracker ──────────────────────
 
 TRACKER_TRIGGERS = [
     "progress", "update", "this week", "baby size",
     "baby update", "week update", "how is my baby",
     "mera baby", "baby kesa hai", "is week",
     "pregnancy update", "weekly update", "milestone",
-    "baby growth", "kitna bada", "how big"
+    "baby growth", "kitna bada", "how big", "report",
+    "meri report", "health update", "mera progress"
 ]
 
 
 def is_tracker_request(message):
-    """Check if woman is asking for progress update."""
     text = message.lower()
     return any(trigger in text for trigger in TRACKER_TRIGGERS)

@@ -12,6 +12,7 @@ from analyzer import analyze
 from alerts import save_alert, get_alert_count
 from dashboard import render_dashboard
 from tracker import get_progress_update, is_tracker_request
+from health_log import log_symptom
 
 
 def detect_language(text):
@@ -132,13 +133,17 @@ def whatsapp_reply():
             reply = get_progress_update(
                 user["week"],
                 user["name"],
+                sender,
                 user["language"]
             )
             msg.body(reply)
             return str(response)
 
-        # Otherwise analyze as symptom
+        # Analyze symptom
         level, reply, alert_needed = analyze(incoming_msg, user["week"])
+
+        # Log every report to her personal health record
+        log_symptom(sender, user["week"], incoming_msg, level)
 
         if level == "RED":
             full_reply = (

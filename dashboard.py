@@ -117,12 +117,26 @@ DASHBOARD_HTML = """
 
 
 def render_dashboard(patients, high_risk, total, safe):
-    alerts = get_all_alerts()
+    from health_log import health_logs, get_risk_score
+    alerts       = get_all_alerts()
+    total_reports = sum(len(log) for log in health_logs.values())
+
+    # Add risk score to each patient
+    patient_risks = {}
+    for phone in patients:
+        score, risk_level, summary = get_risk_score(phone)
+        patient_risks[phone] = {
+            "score": score,
+            "level": risk_level
+        }
+
     return render_template_string(
         DASHBOARD_HTML,
         alerts=alerts,
         patients=patients,
         high_risk=high_risk,
         total=total,
-        safe=safe
+        safe=safe,
+        total_reports=total_reports,
+        patient_risks=patient_risks
     )
