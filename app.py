@@ -12,6 +12,28 @@ from analyzer import analyze
 from alerts import save_alert, get_alert_count
 from dashboard import render_dashboard
 
+
+def detect_language(text):
+    """Simple language detection based on script."""
+    for char in text:
+        if '\u0900' <= char <= '\u097F':
+            return "Hindi"
+        elif '\u0B80' <= char <= '\u0BFF':
+            return "Tamil"
+        elif '\u0C00' <= char <= '\u0C7F':
+            return "Telugu"
+        elif '\u0980' <= char <= '\u09FF':
+            return "Bengali"
+        elif '\u0A80' <= char <= '\u0AFF':
+            return "Gujarati"
+        elif '\u0C80' <= char <= '\u0CFF':
+            return "Kannada"
+        elif '\u0900' <= char <= '\u097F':
+            return "Marathi"
+    return "English"
+
+
+
 app = Flask(__name__)
 
 user_profiles = {}
@@ -52,7 +74,8 @@ def whatsapp_reply():
         user_profiles[sender] = {
             "step": "welcome",
             "name": "",
-            "week": 0
+            "week": 0,
+            "language": "Hindi"
         }
 
     user = user_profiles[sender]
@@ -101,6 +124,8 @@ def whatsapp_reply():
     # ── Symptom Analysis ──────────────────────────────────────────
     elif user["step"] == "registered":
         level, reply, alert_needed = analyze(incoming_msg, user["week"])
+        # Update language based on what woman is using
+        user["language"] = detect_language(incoming_msg)
 
         if level == "RED":
             full_reply = (

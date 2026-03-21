@@ -1,68 +1,75 @@
 # ─────────────────────────────────────────────────────────────────
 # MaaSakhi Weekly Pregnancy Tips
-# Source: WHO ANC Guidelines 2016
-#       + NHM Maternal Health Protocol 2019
-#       + ICMR Dietary Guidelines 2020
+# Multilingual — AI generates in woman's language
+# Source: WHO ANC Guidelines 2016 + NHM Module 6
 # ─────────────────────────────────────────────────────────────────
 
+import os
+from groq import Groq
 
-def get_weekly_tip(week):
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
-    # ── First Trimester (Weeks 1 to 12) ──────────────────────────
+
+def get_weekly_tip(week, language="Hindi"):
+    """
+    Generates weekly tip in the woman's language using Groq AI.
+    Falls back to English if AI fails.
+    """
+    try:
+        client = Groq(api_key=GROQ_API_KEY)
+
+        prompt = f"""You are MaaSakhi, a maternal health companion for Indian women.
+
+Generate a warm, helpful weekly pregnancy tip for week {week} of pregnancy.
+Reply in {language} language only.
+Keep it simple and friendly — max 5 bullet points.
+Include: what is happening with baby, what to eat, what to watch for.
+Base it on WHO ANC 2016 and NHM India guidelines.
+End with an encouraging line."""
+
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            max_tokens=300,
+            temperature=0.3,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        return response.choices[0].message.content.strip()
+
+    except Exception as e:
+        print(f"Tips generation error: {e}")
+        return get_fallback_tip(week)
+
+
+def get_fallback_tip(week):
+    """Fallback tip in English if AI fails."""
     if week <= 12:
         return (
             f"🌱 Week {week} — First Trimester\n\n"
-            "What is happening: Your baby's brain, heart and spine are forming.\n\n"
-            "What you must do:\n"
-            "• Take folic acid 400mcg every day — prevents brain defects (WHO)\n"
-            "• Book your first ANC checkup immediately if not done\n"
-            "• Avoid alcohol, tobacco, and raw or undercooked food\n"
-            "• Rest when tired — fatigue is completely normal\n"
-            "• Eat small frequent meals if nausea is a problem\n\n"
-            "Warning signs to report immediately:\n"
-            "• Heavy bleeding\n"
-            "• Severe pain\n"
-            "• High fever\n\n"
-            "Source: WHO ANC Guidelines 2016 + NHM Module 6"
+            "• Take folic acid 400mcg daily (WHO recommendation)\n"
+            "• Book your first ANC checkup\n"
+            "• Avoid alcohol and tobacco\n"
+            "• Rest when tired — fatigue is normal\n"
+            "• Eat small frequent meals for nausea\n\n"
+            "You are doing great! 💚"
         )
-
-    # ── Second Trimester (Weeks 13 to 27) ────────────────────────
     elif week <= 27:
         return (
             f"🌸 Week {week} — Second Trimester\n\n"
-            "What is happening: Your baby is growing fast and you should feel movements.\n\n"
-            "What you must do:\n"
-            "• Take iron and folic acid tablet every day (NHM protocol)\n"
-            "• Take calcium supplement as advised by your doctor\n"
+            "• Take iron and folic acid daily (NHM protocol)\n"
             "• Attend ANC checkup every 4 weeks\n"
-            "• Sleep on your left side — better blood flow to baby\n"
-            "• Eat iron rich foods: spinach, lentils, dates, jaggery\n"
-            "• Drink 8 to 10 glasses of water every day\n\n"
-            "Warning signs to report immediately:\n"
-            "• Severe headache or blurry vision\n"
-            "• Heavy bleeding\n"
-            "• No fetal movement after week 20\n"
-            "• Swelling in face or hands\n\n"
-            "Source: NHM ASHA Training Module 6 + WHO ANC 2016"
+            "• Sleep on your left side\n"
+            "• Eat iron rich foods: spinach, lentils, dates\n"
+            "• Watch for swelling in face or hands\n\n"
+            "You are halfway there! 💚"
         )
-
-    # ── Third Trimester (Weeks 28 to 40) ─────────────────────────
     else:
         return (
             f"🌺 Week {week} — Third Trimester\n\n"
-            "What is happening: Baby is preparing for birth. You are nearly there!\n\n"
-            "What you must do:\n"
-            "• ANC checkup every 2 weeks from week 28\n"
-            "• Count fetal movements daily — should feel at least 10 per 2 hours\n"
-            "• Pack your hospital bag now\n"
-            "• Know your nearest health centre and how to get there\n"
-            "• Make sure your ASHA worker has your correct phone number\n"
-            "• Continue iron, folic acid and calcium tablets\n\n"
-            "Warning signs requiring IMMEDIATE hospital visit:\n"
-            "• Severe headache + blurry vision (preeclampsia risk)\n"
-            "• Water breaking or fluid leaking\n"
-            "• Heavy bleeding\n"
-            "• Baby stops moving\n"
-            "• Contractions before week 37\n\n"
-            "Source: WHO ANC Guidelines 2016 + NHM Delivery Preparedness Protocol"
+            "• ANC checkup every 2 weeks now\n"
+            "• Count fetal movements daily\n"
+            "• Pack your hospital bag\n"
+            "• Know your nearest health centre\n"
+            "• Watch for labour signs\n\n"
+            "Almost there — you are so brave! 💚"
         )
