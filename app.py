@@ -225,9 +225,9 @@ def whatsapp_reply():
 
 
 # ── ASHA Dashboard ────────────────────────────────────────────────
-@app.route("/dashboard")
-def dashboard():
-    patients  = get_all_patients()
+@app.route("/dashboard/<asha_id>")
+def dashboard(asha_id):
+    patients  = get_all_patients(asha_id)
     total     = len(patients)
     high_risk = get_alert_count_db()
     safe      = max(total - high_risk, 0)
