@@ -11,6 +11,7 @@ from voice import transcribe_voice_note
 from analyzer import analyze
 from alerts import save_alert, get_alert_count
 from dashboard import render_dashboard
+from tracker import get_progress_update, is_tracker_request
 
 
 def detect_language(text):
@@ -123,9 +124,21 @@ def whatsapp_reply():
 
     # ── Symptom Analysis ──────────────────────────────────────────
     elif user["step"] == "registered":
-        level, reply, alert_needed = analyze(incoming_msg, user["week"])
         # Update language based on what woman is using
         user["language"] = detect_language(incoming_msg)
+
+        # Check if asking for progress update first
+        if is_tracker_request(incoming_msg):
+            reply = get_progress_update(
+                user["week"],
+                user["name"],
+                user["language"]
+            )
+            msg.body(reply)
+            return str(response)
+
+        # Otherwise analyze as symptom
+        level, reply, alert_needed = analyze(incoming_msg, user["week"])
 
         if level == "RED":
             full_reply = (
