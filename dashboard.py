@@ -94,6 +94,9 @@ DASHBOARD_HTML = """
 {% if patients %}
     {% for phone, p in patients.items() %}
     {% if p.step == 'registered' %}
+
+
+    
     <div class="patient-row">
         <div>
             <div class="patient-name">{{ p.name }}</div>
@@ -101,6 +104,7 @@ DASHBOARD_HTML = """
         </div>
         <span class="badge badge-ok">Active</span>
     </div>
+    
     {% endif %}
     {% endfor %}
 {% else %}
