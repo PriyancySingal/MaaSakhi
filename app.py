@@ -231,7 +231,7 @@ def dashboard(asha_id):
     total     = len(patients)
     high_risk = get_alert_count_db()
     safe      = max(total - high_risk, 0)
-    return render_dashboard(patients, high_risk, total, safe)
+    return render_dashboard(patients, high_risk, total, safe,asha_id)
 
 
 # ── Health Check ──────────────────────────────────────────────────
