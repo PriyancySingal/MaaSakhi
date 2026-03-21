@@ -3,3 +3,5 @@ twilio
 requests
 groq
 pydub
+psycopg2-binary
+sqlalchemy

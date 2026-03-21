@@ -117,14 +117,15 @@ DASHBOARD_HTML = """
 
 
 def render_dashboard(patients, high_risk, total, safe):
-    from health_log import health_logs, get_risk_score
-    alerts       = get_all_alerts()
-    total_reports = sum(len(log) for log in health_logs.values())
+    from database import get_all_asha_alerts, get_symptom_logs, get_risk_score_from_db
+    alerts        = get_all_asha_alerts()
+    total_reports = sum(
+        len(get_symptom_logs(phone)) for phone in patients
+    )
 
-    # Add risk score to each patient
     patient_risks = {}
     for phone in patients:
-        score, risk_level, summary = get_risk_score(phone)
+        score, risk_level, summary = get_risk_score_from_db(phone)
         patient_risks[phone] = {
             "score": score,
             "level": risk_level
