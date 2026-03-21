@@ -32,6 +32,7 @@ def init_db():
                 week        INTEGER,
                 step        TEXT DEFAULT 'welcome',
                 language    TEXT DEFAULT 'Hindi',
+                asha_id     TEXT DEFAULT 'asha_1',
                 created_at  TIMESTAMP DEFAULT NOW(),
                 updated_at  TIMESTAMP DEFAULT NOW()
             )
@@ -92,7 +93,7 @@ def get_patient(phone):
         return None
 
 
-def save_patient(phone, name, week, step, language="Hindi"):
+def save_patient(phone, name, week, step, language="Hindi",asha_id="asha_1"):
     """Save or update patient in database."""
     if not engine:
         return
@@ -100,7 +101,7 @@ def save_patient(phone, name, week, step, language="Hindi"):
         with engine.connect() as conn:
             conn.execute(text("""
                 INSERT INTO patients (phone, name, week, step, language, updated_at)
-                VALUES (:phone, :name, :week, :step, :language, NOW())
+                VALUES (:phone, :name, :week, :step, :language, :asha_id, NOW())
                 ON CONFLICT (phone) DO UPDATE SET
                     name       = :name,
                     week       = :week,
@@ -112,21 +113,22 @@ def save_patient(phone, name, week, step, language="Hindi"):
                 "name":     name,
                 "week":     week,
                 "step":     step,
-                "language": language
+                "language": language,
+                "asha_id": asha_id
             })
             conn.commit()
     except Exception as e:
         print(f"Database save_patient error: {e}")
 
 
-def get_all_patients():
+def get_all_patients(asha_id="asha_1"):
     """Get all registered patients."""
     if not engine:
         return {}
     try:
         with engine.connect() as conn:
             results = conn.execute(
-                text("SELECT * FROM patients WHERE step = 'registered'")
+                text("SELECT * FROM patients WHERE step = 'registered' AND asha_id = :asha_id")
             ).fetchall()
             patients = {}
             for r in results:
