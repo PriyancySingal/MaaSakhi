@@ -248,23 +248,3 @@ if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
-```
-
-Save and close.
-
----
-
-## Now push:
-```
-git add .
-```
-```
-git commit -m "switched to PostgreSQL database storage"
-```
-```
-git push origin main
-```
-
-Wait 3 minutes for Railway to redeploy then test:
-```
-Hi
