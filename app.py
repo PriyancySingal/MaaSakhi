@@ -4,7 +4,7 @@
 # Built for WitchHunt Hackathon 2026
 # ─────────────────────────────────────────────────────────────────
 
-from flask import Flask, request
+from flask import Flask, request,render_template_string
 from twilio.twiml.messaging_response import MessagingResponse
 from config import PORT, DEBUG, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN
 from voice import transcribe_voice_note
@@ -43,6 +43,158 @@ def detect_language(text):
 
 
 app = Flask(__name__)
+
+
+
+HOMEPAGE_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MaaSakhi</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            font-family: Arial;
+            margin:0;
+            background:#f0faf5;
+            color:#2c2c2a;
+        }
+        .hero {
+            background:#085041;
+            color:white;
+            padding:40px 20px;
+            text-align:center;
+        }
+        .hero h1 {
+            font-size:28px;
+        }
+        .hero p {
+            margin-top:10px;
+            font-size:14px;
+            opacity:0.9;
+        }
+        .hero {
+        background:#085041;
+        color:white;
+        padding:40px 20px;}
+        
+        .hero-content {
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        max-width:1000px;
+        margin:auto;
+        gap:20px;}
+        
+        .hero-text h1 {
+        font-size:32px;
+        }
+        
+        .hero-text h2 {
+        font-size:18px;
+        font-weight:400;
+        margin-top:8px;
+        }
+        
+        .hero-text p {
+        margin-top:10px;
+        font-size:14px;
+        opacity:0.9;
+        }
+        
+        .hero-logo img {
+    width:140px;
+    filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.3));
+}
+        .section {
+            padding:30px 20px;
+            text-align:center;
+        }
+        .features {
+            display:grid;
+            grid-template-columns:repeat(2,1fr);
+            gap:12px;
+            margin-top:20px;
+        }
+        .card {
+            background:white;
+            padding:15px;
+            border-radius:10px;
+            border:1px solid #e1f5ee;
+        }
+        .btn {
+            display:inline-block;
+            margin-top:20px;
+            padding:14px 24px;
+            background:#085041;
+            color:white;
+            text-decoration:none;
+            border-radius:8px;
+        }
+        .footer {
+            text-align:center;
+            font-size:12px;
+            color:#777;
+            padding:20px;
+        }
+        @media (max-width: 768px) {
+        .hero-content {
+        flex-direction:column;
+        text-align:center;
+    }
+    .hero-logo img {
+        width:100px;
+        margin-top:15px;
+    }
+}
+    </style>
+</head>
+<body>
+
+
+
+<div class="hero">
+    <div class="hero-content">
+
+        <!-- LEFT SIDE -->
+        <div class="hero-text">
+            <h1>🌿MaaSakhi</h1>
+            <h2>Maternal Health Support System for Rural India</h2>
+            <p>In collaboration with Department of Women & Child Development</p>
+        </div>
+
+        <!-- RIGHT SIDE (LOGO) -->
+        <div class="hero-logo">
+            <img src="/static/logo.png" alt="MaaSakhi Logo">
+        </div>
+
+    </div>
+</div>
+
+<div class="section">
+    <p>
+        MaaSakhi is an AI-powered WhatsApp assistant that helps pregnant women
+        and supports ASHA workers with real-time health monitoring and risk detection.
+    </p>
+
+    <div class="features">
+        <div class="card">📱 WhatsApp Monitoring</div>
+        <div class="card">🚨 Risk Alerts</div>
+        <div class="card">👩‍⚕️ ASHA Dashboard</div>
+        <div class="card">🌍 Multi-language Support</div>
+    </div>
+
+    <a href="/login" class="btn">Login as ASHA Worker</a>
+</div>
+
+<div class="footer">
+    Built for WitchHunt 2026 • Powered by WHO + NHM + FOGSI Guidelines
+</div>
+
+</body>
+</html>
+"""
+
 
 # Initialize database on startup
 init_db()
@@ -324,7 +476,7 @@ def login():
     </head>
     <body>
         <div class="box">
-            <h2>🌸 MaaSakhi</h2>
+            <h2> 🌿 MaaSakhi</h2>
             <p>ASHA Worker Login</p>
             <form method="POST">
                 <input name="phone" placeholder="Enter phone (with whatsapp:+91...)" required />
@@ -337,11 +489,7 @@ def login():
 # ── Health Check ──────────────────────────────────────────────────
 @app.route("/")
 def home():
-    return (
-        "🌸 MaaSakhi is running!\n "
-        "Visit /login for the ASHA worker login\n"
-        "Visit /dashboard for the ASHA worker dashboard."
-    )
+    return render_template_string(HOMEPAGE_HTML)
 
 
 # ── Run ───────────────────────────────────────────────────────────
@@ -349,6 +497,7 @@ if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
 
