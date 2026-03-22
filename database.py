@@ -110,7 +110,7 @@ def save_patient(phone, name, week, step, language="Hindi",asha_id="asha_1"):
     try:
         with engine.connect() as conn:
             conn.execute(text("""
-                INSERT INTO patients (phone, name, week, step, language, updated_at)
+                INSERT INTO patients (phone, name, week, step, language, asha_id, updated_at)
                 VALUES (:phone, :name, :week, :step, :language, :asha_id, NOW())
                 ON CONFLICT (phone) DO UPDATE SET
                     name       = :name,
@@ -138,7 +138,8 @@ def get_all_patients(asha_id="asha_1"):
     try:
         with engine.connect() as conn:
             results = conn.execute(
-                text("SELECT * FROM patients WHERE step = 'registered' AND asha_id = :asha_id")
+                text("SELECT * FROM patients WHERE step = 'registered' AND asha_id = :asha_id"),
+                {"asha_id": asha_id}
             ).fetchall()
             patients = {}
             for r in results:
