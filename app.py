@@ -143,7 +143,6 @@ def whatsapp_reply():
             )
     elif user["step"] == "get_village":
         village = incoming_msg.strip()
-        # Find ASHA for village
         asha = get_asha_by_village(village)
         if asha:
             asha_id = asha["asha_id"]
@@ -157,13 +156,17 @@ def whatsapp_reply():
             "registered",
             user["language"],
             asha_id
-    )
+        )
+        _, tip_msg, _ = analyze("tip", user["week"])
         msg.body(
-            f"✅ Registered!\n\n"
+            f"✅ Aap registered hain, {user['name']}!\n\n"
             f"Village: {village}\n"
-            f"Aapki ASHA worker assign ho gayi hai.\n\n"
-            f"Koi symptom ho toh batao 🌸"
-    )
+            f"Aap week {user['week']} mein hain. "
+            f"Main aapke saath hoon 24/7. 💚\n\n"
+            f"{tip_msg}\n\n"
+            f"Koi bhi symptom feel ho — bas mujhe message karo. "
+            f"Main hamesha yahan hoon! 🌸"
+        )
 
     # ── Symptom Analysis ──────────────────────────────────────────
     elif user["step"] == "registered":
@@ -173,7 +176,8 @@ def whatsapp_reply():
         save_patient(
             sender, user["name"],
             user["week"], "registered",
-            user["language"]
+            user["language"],
+            user.get("asha_id", "default_asha")
         )
 
         # Check for progress update
