@@ -32,6 +32,8 @@ def init_db():
                 week        INTEGER,
                 step        TEXT DEFAULT 'welcome',
                 language    TEXT DEFAULT 'Hindi',
+                asha_id     TEXT,
+                village TEXT,
                 created_at  TIMESTAMP DEFAULT NOW(),
                 updated_at  TIMESTAMP DEFAULT NOW()
             )
@@ -48,6 +50,14 @@ def init_db():
                 created_at  TIMESTAMP DEFAULT NOW()
             )
         """))
+        #Asha Table 
+        conn.execute(text("""
+                          CREATE TABLE IF NOT EXISTS asha_workers (
+                          asha_id    TEXT PRIMARY KEY,
+                          name       TEXT,
+                          phone      TEXT,
+                          village    TEXT)
+"""))
 
         # ASHA alerts table
         conn.execute(text("""
@@ -57,6 +67,7 @@ def init_db():
                 name        TEXT,
                 week        INTEGER,
                 symptom     TEXT,
+                asha_id TEXT,
                 status      TEXT DEFAULT 'Pending',
                 created_at  TIMESTAMP DEFAULT NOW()
             )
@@ -92,7 +103,7 @@ def get_patient(phone):
         return None
 
 
-def save_patient(phone, name, week, step, language="Hindi"):
+def save_patient(phone, name, week, step, language="Hindi",asha_id="asha_1"):
     """Save or update patient in database."""
     if not engine:
         return
@@ -100,7 +111,7 @@ def save_patient(phone, name, week, step, language="Hindi"):
         with engine.connect() as conn:
             conn.execute(text("""
                 INSERT INTO patients (phone, name, week, step, language, updated_at)
-                VALUES (:phone, :name, :week, :step, :language, NOW())
+                VALUES (:phone, :name, :week, :step, :language, :asha_id, NOW())
                 ON CONFLICT (phone) DO UPDATE SET
                     name       = :name,
                     week       = :week,
@@ -112,21 +123,22 @@ def save_patient(phone, name, week, step, language="Hindi"):
                 "name":     name,
                 "week":     week,
                 "step":     step,
-                "language": language
+                "language": language,
+                "asha_id": asha_id
             })
             conn.commit()
     except Exception as e:
         print(f"Database save_patient error: {e}")
 
 
-def get_all_patients():
+def get_all_patients(asha_id="asha_1"):
     """Get all registered patients."""
     if not engine:
         return {}
     try:
         with engine.connect() as conn:
             results = conn.execute(
-                text("SELECT * FROM patients WHERE step = 'registered'")
+                text("SELECT * FROM patients WHERE step = 'registered' AND asha_id = :asha_id")
             ).fetchall()
             patients = {}
             for r in results:
@@ -228,49 +240,55 @@ def get_risk_score_from_db(phone):
 
 # ── ASHA alert functions ──────────────────────────────────────────
 
-def save_asha_alert_db(phone, name, week, symptom):
+def save_asha_alert_db(phone, name, week, symptom,asha_id):
     """Save ASHA alert to database."""
     if not engine:
         return
     try:
         with engine.connect() as conn:
             conn.execute(text("""
-                INSERT INTO asha_alerts (phone, name, week, symptom)
-                VALUES (:phone, :name, :week, :symptom)
+                INSERT INTO asha_alerts (phone, name, week, symptom,asha_id)
+                VALUES (:phone, :name, :week, :symptom,:asha_id)
             """), {
                 "phone":   phone,
                 "name":    name,
                 "week":    week,
-                "symptom": symptom
+                "symptom": symptom,
+                "asha_id": asha_id
             })
             conn.commit()
     except Exception as e:
         print(f"Database save_asha_alert error: {e}")
 
 
-def get_all_asha_alerts():
-    """Get all ASHA alerts from database."""
+def get_all_asha_alerts(asha_id):
     if not engine:
         return []
     try:
         with engine.connect() as conn:
             results = conn.execute(
                 text("""
-                    SELECT * FROM asha_alerts
+                    SELECT *
+                    FROM asha_alerts
+                    WHERE asha_id = :asha_id
                     ORDER BY created_at DESC
-                """)
+                """),
+                {"asha_id": asha_id}
             ).fetchall()
+
             return [{
-                "name":    r.name,
-                "week":    r.week,
+                "name": r.name,
+                "week": r.week,
                 "symptom": r.symptom,
-                "phone":   r.phone,
-                "time":    r.created_at.strftime("%d %b %Y, %I:%M %p"),
-                "status":  r.status
+                "phone": r.phone,
+                "time": r.created_at.strftime("%d %b %Y, %I:%M %p"),
+                "status": r.status
             } for r in results]
+
     except Exception as e:
-        print(f"Database get_all_asha_alerts error: {e}")
+        print("Error:", e)
         return []
+
 
 
 def get_alert_count_db():
@@ -286,3 +304,48 @@ def get_alert_count_db():
     except Exception as e:
         print(f"Database get_alert_count error: {e}")
         return 0
+    
+
+
+#ADD FUNCTION TO FIND ASHA BY VILLAGE
+def get_asha_by_village(village):
+    if not engine:
+        return None
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT * FROM asha_workers WHERE village = :village"),
+                {"village": village}
+            ).fetchone()
+
+            if result:
+                return {
+                    "asha_id": result.asha_id,
+                    "name": result.name,
+                    "phone": result.phone
+                }
+            return None
+    except Exception as e:
+        print("Error fetching ASHA:", e)
+        return None
+    
+#ADD FUNCTION TO FIND ASHA BY phone number
+def get_asha_by_phone(phone):
+    if not engine:
+        return None
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT * FROM asha_workers WHERE phone = :phone"),
+                {"phone": phone}
+            ).fetchone()
+
+            if result:
+                return {
+                    "asha_id": result.asha_id,
+                    "name": result.name
+                }
+            return None
+    except Exception as e:
+        print("Error:", e)
+        return None

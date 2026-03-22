@@ -11,6 +11,12 @@ from voice import transcribe_voice_note
 from analyzer import analyze
 from alerts import save_alert
 from dashboard import render_dashboard
+
+
+#New Change -> import get_asha_by_village
+from database import get_asha_by_village
+from database import get_asha_by_phone
+
 from tracker import get_progress_update, is_tracker_request
 from database import (
     init_db, get_patient, save_patient, get_all_patients,
@@ -126,22 +132,38 @@ def whatsapp_reply():
         try:
             week = int(incoming_msg)
             user["week"] = week
-            user["step"] = "registered"
-            save_patient(sender, user["name"], week, "registered")
-            _, tip_msg, _ = analyze("tip", week)
-            msg.body(
-                f"✅ Aap registered hain, {user['name']}!\n\n"
-                f"Aap week {week} mein hain. "
-                f"Main aapke saath hoon 24/7. 💚\n\n"
-                f"{tip_msg}\n\n"
-                f"Koi bhi symptom feel ho — bas mujhe message karo. "
-                f"Main hamesha yahan hoon! 🌸"
-            )
+            user["step"] = "get_village"   # NEW STEP
+            save_patient(sender, user["name"], week, "get_village")
+            msg.body("Aap kis gaon (village) se hain?")
+        
         except ValueError:
             msg.body(
                 "Sirf number bhejiye please.\n"
                 "Just type the number. Example: 26"
             )
+    elif user["step"] == "get_village":
+        village = incoming_msg.strip()
+        # Find ASHA for village
+        asha = get_asha_by_village(village)
+        if asha:
+            asha_id = asha["asha_id"]
+        else:
+            asha_id = "default_asha"
+            user["step"] = "registered"
+            save_patient(
+                sender,
+                user["name"],
+                user["week"],
+                "registered",
+                user["language"],
+                asha_id
+    )
+            msg.body(
+                f"✅ Registered!\n\n"
+                f"Village: {village}\n"
+                f"Aapki ASHA worker assign ho gayi hai.\n\n"
+                f"Koi symptom ho toh batao 🌸"
+    )
 
     # ── Symptom Analysis ──────────────────────────────────────────
     elif user["step"] == "registered":
@@ -182,7 +204,9 @@ def whatsapp_reply():
             )
             save_asha_alert_db(
                 sender, user["name"],
-                user["week"], incoming_msg
+                user["week"],
+                incoming_msg,
+                user.get("asha_id", "asha_1")
             )
             save_alert(
                 user["name"], user["week"],
@@ -225,20 +249,93 @@ def whatsapp_reply():
 
 
 # ── ASHA Dashboard ────────────────────────────────────────────────
-@app.route("/dashboard")
-def dashboard():
-    patients  = get_all_patients()
+@app.route("/dashboard/<asha_id>")
+def dashboard(asha_id):
+    patients  = get_all_patients(asha_id)
     total     = len(patients)
     high_risk = get_alert_count_db()
     safe      = max(total - high_risk, 0)
-    return render_dashboard(patients, high_risk, total, safe)
+    return render_dashboard(patients, high_risk, total, safe,asha_id)
 
+#NeW
 
+# ── ASHA Login ────────────────────────────────────────────────
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    from flask import request, redirect
+
+    if request.method == "POST":
+        phone = request.form.get("phone")
+
+        asha = get_asha_by_phone(phone)
+
+        if asha:
+            return redirect(f"/dashboard/{asha['asha_id']}")
+        else:
+            return """
+            <h3 style='color:red'>❌ Invalid phone number</h3>
+            <a href="/login">Try again</a>
+            """
+
+    return """
+    <html>
+    <head>
+        <title>ASHA Login</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            body {
+                font-family: Arial;
+                background: #f0faf5;
+                display:flex;
+                justify-content:center;
+                align-items:center;
+                height:100vh;
+            }
+            .box {
+                background:white;
+                padding:30px;
+                border-radius:12px;
+                box-shadow:0 4px 12px rgba(0,0,0,0.1);
+                width:90%;
+                max-width:350px;
+                text-align:center;
+            }
+            input {
+                width:100%;
+                padding:12px;
+                margin-top:15px;
+                border-radius:8px;
+                border:1px solid #ccc;
+            }
+            button {
+                margin-top:15px;
+                width:100%;
+                padding:12px;
+                background:#085041;
+                color:white;
+                border:none;
+                border-radius:8px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="box">
+            <h2>🌸 MaaSakhi</h2>
+            <p>ASHA Worker Login</p>
+            <form method="POST">
+                <input name="phone" placeholder="Enter phone (with whatsapp:+91...)" required />
+                <button type="submit">Login</button>
+            </form>
+        </div>
+    </body>
+    </html>
+    """
 # ── Health Check ──────────────────────────────────────────────────
 @app.route("/")
 def home():
     return (
-        "🌸 MaaSakhi is running! "
+        "🌸 MaaSakhi is running!\n "
+        "Visit /login for the ASHA worker login\n"
         "Visit /dashboard for the ASHA worker dashboard."
     )
 
@@ -248,3 +345,6 @@ if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
+
+
