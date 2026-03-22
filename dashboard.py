@@ -148,5 +148,6 @@ def render_dashboard(patients, high_risk, total, safe,asha_id):
         total=total,
         safe=safe,
         total_reports=total_reports,
-        patient_risks=patient_risks
+        patient_risks=patient_risks,
+        asha_id=asha_id
     )
