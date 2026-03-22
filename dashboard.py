@@ -54,7 +54,7 @@ DASHBOARD_HTML = """
 <body>
 
 <div class="header">
-    <h1>🌸 MaaSakhi — ASHA Dashboard</h1>
+    <h1>🌿 MaaSakhi — ASHA Dashboard</h1>
     <p>Auto-refreshes every 30 seconds • Powered by WHO + NHM Guidelines</p>
 </div>
 
