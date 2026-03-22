@@ -149,20 +149,20 @@ def whatsapp_reply():
             asha_id = asha["asha_id"]
         else:
             asha_id = "default_asha"
-            user["step"] = "registered"
-            save_patient(
-                sender,
-                user["name"],
-                user["week"],
-                "registered",
-                user["language"],
-                asha_id
+        user["step"] = "registered"
+        save_patient(
+            sender,
+            user["name"],
+            user["week"],
+            "registered",
+            user["language"],
+            asha_id
     )
-            msg.body(
-                f"✅ Registered!\n\n"
-                f"Village: {village}\n"
-                f"Aapki ASHA worker assign ho gayi hai.\n\n"
-                f"Koi symptom ho toh batao 🌸"
+        msg.body(
+            f"✅ Registered!\n\n"
+            f"Village: {village}\n"
+            f"Aapki ASHA worker assign ho gayi hai.\n\n"
+            f"Koi symptom ho toh batao 🌸"
     )
 
     # ── Symptom Analysis ──────────────────────────────────────────
