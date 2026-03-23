@@ -95,7 +95,8 @@ def get_patient(phone):
                     "name":     result.name,
                     "week":     result.week,
                     "step":     result.step,
-                    "language": result.language
+                    "language": result.language,
+                    "asha_id":  result.asha_id if result.asha_id else "default_asha"
                 }
             return None
     except Exception as e:
@@ -117,6 +118,7 @@ def save_patient(phone, name, week, step, language="Hindi",asha_id="asha_1"):
                     week       = :week,
                     step       = :step,
                     language   = :language,
+                    asha_id    = :asha_id,
                     updated_at = NOW()
             """), {
                 "phone":    phone,
@@ -292,14 +294,15 @@ def get_all_asha_alerts(asha_id):
 
 
 
-def get_alert_count_db():
-    """Get total alert count from database."""
+def get_alert_count_db(asha_id="default_asha"):
+    """Get alert count for specific ASHA worker."""
     if not engine:
         return 0
     try:
         with engine.connect() as conn:
             result = conn.execute(
-                text("SELECT COUNT(*) FROM asha_alerts")
+                text("SELECT COUNT(*) FROM asha_alerts WHERE asha_id = :asha_id"),
+                {"asha_id": asha_id}
             ).fetchone()
             return result[0]
     except Exception as e:
