@@ -270,7 +270,11 @@ def get_asha_stats(asha_id):
             ).fetchone()[0]
 
             high_risk = conn.execute(
-                text("SELECT COUNT(*) FROM asha_alerts WHERE asha_id = :id"),
+                text("""
+                    SELECT COUNT(*) FROM asha_alerts
+                    WHERE asha_id = :id
+                    AND status != 'Resolved'
+                """),
                 {"id": asha_id}
             ).fetchone()[0]
 
@@ -566,7 +570,11 @@ def get_alert_count_db(asha_id="default_asha"):
     try:
         with engine.connect() as conn:
             result = conn.execute(
-                text("SELECT COUNT(*) FROM asha_alerts WHERE asha_id = :asha_id"),
+                text("""
+                    SELECT COUNT(*) FROM asha_alerts
+                    WHERE asha_id = :asha_id
+                    AND status != 'Resolved'
+                """),
                 {"asha_id": asha_id}
             ).fetchone()
             return result[0]

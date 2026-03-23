@@ -396,10 +396,10 @@ def dashboard(asha_id):
     patients  = get_all_patients(asha_id)
     total     = len(patients)
     alerts    = get_all_asha_alerts(asha_id)
-    high_risk = len(alerts)
+    # Only count Pending and Attended as high risk — not Resolved
+    high_risk = len([a for a in alerts if a["status"] != "Resolved"])
     safe      = max(total - high_risk, 0)
     return render_dashboard(patients, high_risk, total, safe, asha_id)
-
 
 # ── ASHA marks alert as Attended ─────────────────────────────────
 @app.route("/dashboard/<asha_id>/attend/<alert_id>", methods=["POST"])
