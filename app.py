@@ -432,9 +432,11 @@ def whatsapp_reply():
 def dashboard(asha_id):
     patients  = get_all_patients(asha_id)
     total     = len(patients)
-    high_risk = get_alert_count_db()
+    alerts    = get_all_asha_alerts(asha_id)
+    high_risk = len(alerts)
     safe      = max(total - high_risk, 0)
-    return render_dashboard(patients, high_risk, total, safe,asha_id)
+    return render_dashboard(patients, high_risk, total, safe, asha_id)
+
 
 #NeW
 
