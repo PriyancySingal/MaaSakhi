@@ -572,3 +572,50 @@ def get_alert_count_db(asha_id="default_asha"):
     except Exception as e:
         print(f"Get alert count error: {e}")
         return 0
+
+def update_alert_status(alert_id, status):
+    """Update alert status — Pending → Attended → Resolved."""
+    if not engine:
+        return False
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                UPDATE asha_alerts
+                SET status = :status
+                WHERE id = :id
+            """), {"status": status, "id": alert_id})
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Update alert status error: {e}")
+        return False
+
+
+def get_alert_by_patient_phone(phone):
+    """Get latest pending/attended alert for a patient."""
+    if not engine:
+        return None
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("""
+                    SELECT * FROM asha_alerts
+                    WHERE phone = :phone
+                    AND status != 'Resolved'
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                """),
+                {"phone": phone}
+            ).fetchone()
+            if result:
+                return {
+                    "id":      result.id,
+                    "name":    result.name,
+                    "week":    result.week,
+                    "symptom": result.symptom,
+                    "status":  result.status
+                }
+            return None
+    except Exception as e:
+        print(f"Get alert by phone error: {e}")
+        return None

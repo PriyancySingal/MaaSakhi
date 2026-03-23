@@ -3,20 +3,16 @@
 # WhatsApp Maternal Health Bot for Rural India
 # Built for WitchHunt Hackathon 2026
 # ─────────────────────────────────────────────────────────────────
-import os 
-from flask import Flask, request,render_template_string, session, redirect
+import os
+from flask import Flask, request, render_template_string, session, redirect
 from twilio.twiml.messaging_response import MessagingResponse
 from config import PORT, DEBUG, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN
 from voice import transcribe_voice_note
 from analyzer import analyze
 from alerts import save_alert
 from dashboard import render_dashboard
-
-
-#New Change -> import get_asha_by_village
-from database import get_asha_by_village
-from database import get_asha_by_phone
-
+from database import update_alert_status, get_alert_by_patient_phone
+from database import get_asha_by_village, get_asha_by_phone
 from tracker import get_progress_update, is_tracker_request
 from database import (
     init_db, get_patient, save_patient, get_all_patients,
@@ -52,7 +48,6 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "maasakhi2026secret")
 
 
-
 HOMEPAGE_HTML = """
 <!DOCTYPE html>
 <html>
@@ -60,130 +55,51 @@ HOMEPAGE_HTML = """
     <title>MaaSakhi</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body {
-            font-family: Arial;
-            margin:0;
-            background:#f0faf5;
-            color:#2c2c2a;
-        }
-        .hero {
-            background:#085041;
-            color:white;
-            padding:40px 20px;
-            text-align:center;
-        }
-        .hero h1 {
-            font-size:28px;
-        }
-        .hero p {
-            margin-top:10px;
-            font-size:14px;
-            opacity:0.9;
-        }
-        .hero {
-        background:#085041;
-        color:white;
-        padding:40px 20px;}
-        
+        body { font-family: Arial; margin:0; background:#f0faf5; color:#2c2c2a; }
+        .hero { background:#085041; color:white; padding:40px 20px; }
         .hero-content {
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-        max-width:1000px;
-        margin:auto;
-        gap:20px;}
-        
-        .hero-text h1 {
-        font-size:32px;
+            display:flex; justify-content:space-between; align-items:center;
+            max-width:1000px; margin:auto; gap:20px;
         }
-        
-        .hero-text h2 {
-        font-size:18px;
-        font-weight:400;
-        margin-top:8px;
-        }
-        
-        .hero-text p {
-        margin-top:10px;
-        font-size:14px;
-        opacity:0.9;
-        }
-        
+        .hero-text h1 { font-size:32px; }
+        .hero-text h2 { font-size:18px; font-weight:400; margin-top:8px; }
+        .hero-text p  { margin-top:10px; font-size:14px; opacity:0.9; }
         .hero-logo img {
-    width:140px;
-    filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.3));
-}
-        .section {
-            padding:30px 20px;
-            text-align:center;
+            width:140px;
+            filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.3));
         }
+        .section { padding:30px 20px; text-align:center; }
         .features {
-            display:grid;
-            grid-template-columns:repeat(2,1fr);
-            gap:12px;
-            margin-top:20px;
+            display:grid; grid-template-columns:repeat(2,1fr);
+            gap:12px; margin-top:20px;
         }
-        .card {
-            background:white;
-            padding:15px;
-            border-radius:10px;
-            border:1px solid #e1f5ee;
-        }
+        .card { background:white; padding:15px; border-radius:10px; border:1px solid #e1f5ee; }
         .btn {
-            display:inline-block;
-            margin-top:20px;
-            padding:14px 24px;
-            background:#085041;
-            color:white;
-            text-decoration:none;
-            border-radius:8px;
-	    font-weight:bold;
+            display:inline-block; margin-top:20px; padding:14px 24px;
+            background:#085041; color:white; text-decoration:none;
+            border-radius:8px; font-weight:bold;
         }
-        .btn-admin{
-	    background:#2D1267;
-            border:1px solid #5B2FBF;
-            margin-top:20px;
-        }
-        .btn-admin:hover {
-            background:#3D1A8C;
-        }
-        .footer {
-            text-align:center;
-            font-size:12px;
-            color:#777;
-            padding:20px;
-        }
+        .btn-admin { background:#2D1267; border:1px solid #5B2FBF; margin-top:20px; }
+        .btn-admin:hover { background:#3D1A8C; }
+        .footer { text-align:center; font-size:12px; color:#777; padding:20px; }
         @media (max-width: 768px) {
-        .hero-content {
-        flex-direction:column;
-        text-align:center;
-    }
-    .hero-logo img {
-        width:100px;
-        margin-top:15px;
-    }
-}
+            .hero-content { flex-direction:column; text-align:center; }
+            .hero-logo img { width:100px; margin-top:15px; }
+        }
     </style>
 </head>
 <body>
 
-
-
 <div class="hero">
     <div class="hero-content">
-
-        <!-- LEFT SIDE -->
         <div class="hero-text">
-            <h1>🌿MaaSakhi</h1>
+            <h1>🌿 MaaSakhi</h1>
             <h2>Maternal Health Support System for Rural India</h2>
             <p>In collaboration with Department of Women & Child Development</p>
         </div>
-
-        <!-- RIGHT SIDE (LOGO) -->
         <div class="hero-logo">
             <img src="/static/logo.png" alt="MaaSakhi Logo">
         </div>
-
     </div>
 </div>
 
@@ -192,22 +108,16 @@ HOMEPAGE_HTML = """
         MaaSakhi is an AI-powered WhatsApp assistant that helps pregnant women
         and supports ASHA workers with real-time health monitoring and risk detection.
     </p>
-
     <div class="features">
         <div class="card">📱 WhatsApp Monitoring</div>
         <div class="card">🚨 Risk Alerts</div>
         <div class="card">👩‍⚕️ ASHA Dashboard</div>
         <div class="card">🌍 Multi-language Support</div>
     </div>
-
     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px">
-    <a href="/login" class="btn">
-        👩 Login as ASHA Worker
-    </a>
-    <a href="/admin/login" class="btn btn-admin">
-        🔐 Admin Login
-    </a>
-</div>
+        <a href="/login" class="btn">👩 Login as ASHA Worker</a>
+        <a href="/admin/login" class="btn btn-admin">🔐 Admin Login</a>
+    </div>
 </div>
 
 <div class="footer">
@@ -221,6 +131,18 @@ HOMEPAGE_HTML = """
 
 # Initialize database on startup
 init_db()
+
+
+# ── Patient confirms recovery check ──────────────────────────────
+def handle_recovery_confirmation(sender, user, msg):
+    """Check if patient is confirming recovery."""
+    recovery_keywords = [
+        "i am better", "i am fine", "theek hoon", "theek hu",
+        "better now", "feeling better", "mujhe theek", "ab theek",
+        "recovered", "all good", "sahi hoon", "achha feel"
+    ]
+    msg_lower = msg.lower()
+    return any(keyword in msg_lower for keyword in recovery_keywords)
 
 
 @app.route("/whatsapp", methods=["POST"])
@@ -307,15 +229,15 @@ def whatsapp_reply():
         try:
             week = int(incoming_msg)
             user["week"] = week
-            user["step"] = "get_village"   # NEW STEP
+            user["step"] = "get_village"
             save_patient(sender, user["name"], week, "get_village")
             msg.body("Aap kis gaon (village) se hain?")
-        
         except ValueError:
             msg.body(
                 "Sirf number bhejiye please.\n"
                 "Just type the number. Example: 26"
             )
+
     elif user["step"] == "get_village":
         village = incoming_msg.strip()
         asha = get_asha_by_village(village)
@@ -325,12 +247,8 @@ def whatsapp_reply():
             asha_id = "default_asha"
         user["step"] = "registered"
         save_patient(
-            sender,
-            user["name"],
-            user["week"],
-            "registered",
-            user["language"],
-            asha_id
+            sender, user["name"], user["week"],
+            "registered", user["language"], asha_id, village
         )
         _, tip_msg, _ = analyze("tip", user["week"])
         msg.body(
@@ -346,13 +264,34 @@ def whatsapp_reply():
     # ── Symptom Analysis ──────────────────────────────────────────
     elif user["step"] == "registered":
 
+        # ── Check if patient is confirming recovery ───────────────
+        if handle_recovery_confirmation(sender, user, incoming_msg):
+            alert = get_alert_by_patient_phone(sender)
+            if alert and alert["status"] == "Attended":
+                update_alert_status(alert["id"], "Resolved")
+                msg.body(
+                    f"🌸 Bahut khushi hui yeh sunke, {user['name']}!\n\n"
+                    f"Aapki recovery confirm ho gayi. ✅\n"
+                    f"Aapki ASHA worker ko bhi inform kar diya gaya hai.\n\n"
+                    f"Apna khayal rakhein aur iron ki goli lena mat bhoolein! 💚"
+                )
+                return str(response)
+            elif alert and alert["status"] == "Pending":
+                msg.body(
+                    f"Khushi hui sunke {user['name']}! 🌸\n\n"
+                    f"Aapki ASHA worker abhi aapke case ko review kar rahi hain.\n"
+                    f"Agar koi aur symptom ho toh zaroor batana. 💚"
+                )
+                return str(response)
+
         # Update language
         user["language"] = detect_language(incoming_msg)
         save_patient(
             sender, user["name"],
             user["week"], "registered",
             user["language"],
-            user.get("asha_id", "default_asha")
+            user.get("asha_id", "default_asha"),
+            user.get("village", "")
         )
 
         # Check for progress update
@@ -383,9 +322,8 @@ def whatsapp_reply():
             )
             save_asha_alert_db(
                 sender, user["name"],
-                user["week"],
-                incoming_msg,
-                user.get("asha_id", "asha_1")
+                user["week"], incoming_msg,
+                user.get("asha_id", "default_asha")
             )
             save_alert(
                 user["name"], user["week"],
@@ -439,24 +377,30 @@ def dashboard(asha_id):
     return render_dashboard(patients, high_risk, total, safe, asha_id)
 
 
-#NeW
+# ── ASHA marks alert as Attended ─────────────────────────────────
+@app.route("/dashboard/<asha_id>/attend/<int:alert_id>", methods=["POST"])
+def mark_attended(asha_id, alert_id):
+    update_alert_status(alert_id, "Attended")
+    return redirect(f"/dashboard/{asha_id}")
 
-# ── ASHA Login ────────────────────────────────────────────────
+
+# ── ASHA Login ────────────────────────────────────────────────────
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    from flask import request, redirect
-
     if request.method == "POST":
-        phone = request.form.get("phone")
-
+        phone = request.form.get("phone", "").strip()
+        # Auto add whatsapp: prefix if missing
+        if not phone.startswith("whatsapp:"):
+            phone = "whatsapp:+91" + phone.replace("+91", "").replace(" ", "")
         asha = get_asha_by_phone(phone)
-
         if asha:
             return redirect(f"/dashboard/{asha['asha_id']}")
         else:
             return """
-            <h3 style='color:red'>❌ Invalid phone number</h3>
-            <a href="/login">Try again</a>
+            <h3 style='color:red;font-family:Arial;padding:20px'>
+                ❌ Invalid phone number. Try again.
+            </h3>
+            <a href="/login" style='font-family:Arial;padding:20px'>← Back</a>
             """
 
     return """
@@ -466,58 +410,53 @@ def login():
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
             body {
-                font-family: Arial;
-                background: #f0faf5;
-                display:flex;
-                justify-content:center;
-                align-items:center;
-                height:100vh;
+                font-family: Arial; background:#f0faf5;
+                display:flex; justify-content:center;
+                align-items:center; height:100vh;
             }
             .box {
-                background:white;
-                padding:30px;
-                border-radius:12px;
+                background:white; padding:30px; border-radius:12px;
                 box-shadow:0 4px 12px rgba(0,0,0,0.1);
-                width:90%;
-                max-width:350px;
-                text-align:center;
+                width:90%; max-width:350px; text-align:center;
             }
             input {
-                width:100%;
-                padding:12px;
-                margin-top:15px;
-                border-radius:8px;
-                border:1px solid #ccc;
+                width:100%; padding:12px; margin-top:15px;
+                border-radius:8px; border:1px solid #ccc;
+                box-sizing:border-box;
             }
             button {
-                margin-top:15px;
-                width:100%;
-                padding:12px;
-                background:#085041;
-                color:white;
-                border:none;
-                border-radius:8px;
+                margin-top:15px; width:100%; padding:12px;
+                background:#085041; color:white;
+                border:none; border-radius:8px;
+                font-size:14px; font-weight:bold; cursor:pointer;
             }
+            .hint { font-size:11px; color:#888; margin-top:8px; }
+            .back { display:block; margin-top:16px; font-size:12px; color:#555; text-decoration:none; }
         </style>
     </head>
     <body>
         <div class="box">
-            <h2> 🌿 MaaSakhi</h2>
+            <h2>🌿 MaaSakhi</h2>
             <p>ASHA Worker Login</p>
             <form method="POST">
-                <input name="phone" placeholder="Enter phone (with whatsapp:+91...)" required />
+                <input name="phone" placeholder="Enter your 10-digit mobile number" required />
+                <p class="hint">Example: 9315168344</p>
                 <button type="submit">Login</button>
             </form>
+            <a href="/" class="back">← Back to Home</a>
         </div>
     </body>
     </html>
     """
-# ── Health Check ──────────────────────────────────────────────────
+
+
+# ── Homepage ──────────────────────────────────────────────────────
 @app.route("/")
 def home():
     return render_template_string(HOMEPAGE_HTML)
 
-# ── ADMIN LOGIN ───────────────────────────────────────────────────
+
+# ── Admin Login ───────────────────────────────────────────────────
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
@@ -537,7 +476,7 @@ def admin_logout():
     return redirect("/admin/login")
 
 
-# ── ADMIN DASHBOARD ───────────────────────────────────────────────
+# ── Admin Dashboard ───────────────────────────────────────────────
 @app.route("/admin")
 def admin_dashboard():
     if "admin" not in session:
@@ -549,7 +488,7 @@ def admin_dashboard():
     )
 
 
-# ── ADD ASHA WORKER ───────────────────────────────────────────────
+# ── Add ASHA Worker ───────────────────────────────────────────────
 @app.route("/admin/add-asha", methods=["POST"])
 def admin_add_asha():
     if "admin" not in session:
@@ -559,9 +498,7 @@ def admin_add_asha():
     phone    = request.form.get("phone", "").strip()
     village  = request.form.get("village", "").strip()
     district = request.form.get("district", "").strip()
-
-    success = add_asha_worker(asha_id, name, phone, village, district)
-    tab = request.args.get("tab", "asha")
+    success  = add_asha_worker(asha_id, name, phone, village, district)
     return render_admin_panel(
         admin_name=session["admin"]["name"],
         tab="asha",
@@ -570,7 +507,7 @@ def admin_add_asha():
     )
 
 
-# ── TOGGLE ASHA STATUS ────────────────────────────────────────────
+# ── Toggle ASHA Status ────────────────────────────────────────────
 @app.route("/admin/toggle-asha", methods=["POST"])
 def admin_toggle_asha():
     if "admin" not in session:
@@ -580,7 +517,7 @@ def admin_toggle_asha():
     return redirect("/admin?tab=asha")
 
 
-# ── DELETE ASHA WORKER ────────────────────────────────────────────
+# ── Delete ASHA Worker ────────────────────────────────────────────
 @app.route("/admin/delete-asha", methods=["POST"])
 def admin_delete_asha():
     if "admin" not in session:
@@ -590,14 +527,7 @@ def admin_delete_asha():
     return redirect("/admin?tab=asha")
 
 
-
-
 # ── Run ───────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
-
-
-
-

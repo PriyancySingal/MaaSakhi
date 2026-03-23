@@ -1,6 +1,6 @@
 # ─────────────────────────────────────────────────────────────────
 # MaaSakhi ASHA Worker Dashboard
-# Accessible at: your-url/dashboard/<asha_id>
+# With complete care loop — Pending → Attended → Resolved
 # ─────────────────────────────────────────────────────────────────
 
 from flask import render_template_string
@@ -21,39 +21,127 @@ DASHBOARD_HTML = """
         .header h1 { font-size:22px; }
         .header p  { font-size:13px; opacity:0.8; margin-top:4px; }
 
-        .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; padding:20px; }
-        .stat  { background:white; border-radius:12px; padding:16px; text-align:center; border:1px solid #e1f5ee; }
+        .header-sub {
+            background:#0a6b52;
+            padding:10px 24px;
+        }
+        .header-sub p {
+            font-size:13px;
+            color:white;
+        }
+
+        .stats {
+            display:grid;
+            grid-template-columns:repeat(3,1fr);
+            gap:12px;
+            padding:20px;
+        }
+        .stat {
+            background:white;
+            border-radius:12px;
+            padding:16px;
+            text-align:center;
+            border:1px solid #e1f5ee;
+        }
         .stat-number { font-size:36px; font-weight:bold; }
         .stat-label  { font-size:12px; color:#888; margin-top:4px; }
 
-        .section { padding:0 20px 10px; font-size:12px; font-weight:bold;
-                   color:#085041; text-transform:uppercase; letter-spacing:.06em; margin-top:8px; }
+        .section {
+            padding:0 20px 10px;
+            font-size:12px;
+            font-weight:bold;
+            color:#085041;
+            text-transform:uppercase;
+            letter-spacing:.06em;
+            margin-top:8px;
+        }
 
-        .alert-card { margin:0 20px 12px; background:white; border-radius:12px;
-                      padding:16px; border-left:4px solid #e24b4a; }
+        .alert-card {
+            margin:0 20px 12px;
+            background:white;
+            border-radius:12px;
+            padding:16px;
+            border-left:4px solid #e24b4a;
+        }
+        .alert-card.attended {
+            border-left:4px solid #f59e0b;
+        }
+        .alert-card.resolved {
+            border-left:4px solid #10b981;
+            opacity:0.7;
+        }
+
         .alert-name   { font-weight:bold; font-size:15px; }
         .alert-detail { font-size:13px; color:#666; margin-top:4px; }
         .alert-time   { font-size:12px; color:#aaa; margin-top:6px; }
 
-        .badge     { display:inline-block; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:bold; }
-        .badge-red { background:#fcebeb; color:#a32d2d; }
-        .badge-ok  { background:#eaf3de; color:#3b6d11; }
-        .badge-amber { background:#fef3c7; color:#92400e; }
+        .badge {
+            display:inline-block;
+            padding:2px 10px;
+            border-radius:20px;
+            font-size:11px;
+            font-weight:bold;
+        }
+        .badge-red    { background:#fcebeb; color:#a32d2d; }
+        .badge-amber  { background:#fef3c7; color:#92400e; }
+        .badge-green  { background:#eaf3de; color:#3b6d11; }
+        .badge-ok     { background:#eaf3de; color:#3b6d11; }
 
-        .patient-row { background:white; border-radius:10px; padding:14px 16px;
-                       margin:0 20px 8px; display:flex; justify-content:space-between;
-                       align-items:center; border:1px solid #e1f5ee; }
+        .btn-attend {
+            margin-top:10px;
+            padding:8px 16px;
+            background:#f59e0b;
+            color:white;
+            border:none;
+            border-radius:8px;
+            font-size:12px;
+            font-weight:bold;
+            cursor:pointer;
+        }
+        .btn-attend:hover { background:#d97706; }
+
+        .status-flow {
+            display:flex;
+            align-items:center;
+            gap:6px;
+            margin-top:8px;
+            font-size:11px;
+        }
+        .step {
+            padding:3px 10px;
+            border-radius:20px;
+            font-weight:bold;
+        }
+        .step-done    { background:#085041; color:white; }
+        .step-current { background:#e24b4a; color:white; }
+        .step-pending { background:#e5e7eb; color:#888; }
+        .step-arrow   { color:#aaa; }
+
+        .patient-row {
+            background:white;
+            border-radius:10px;
+            padding:14px 16px;
+            margin:0 20px 8px;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            border:1px solid #e1f5ee;
+        }
         .patient-name   { font-weight:500; font-size:14px; }
         .patient-detail { font-size:12px; color:#888; margin-top:2px; }
-
         .risk-bar { height:6px; border-radius:3px; margin-top:6px; }
 
         .empty { text-align:center; padding:30px; color:#aaa; font-size:14px; }
-
-        .back-btn { display:inline-block; margin:12px 20px; padding:8px 16px;
-                    background:#085041; color:white; border-radius:8px;
-                    text-decoration:none; font-size:12px; }
-
+        .back-btn {
+            display:inline-block;
+            margin:12px 20px;
+            padding:8px 16px;
+            background:#085041;
+            color:white;
+            border-radius:8px;
+            text-decoration:none;
+            font-size:12px;
+        }
         .footer { text-align:center; font-size:12px; color:#aaa; padding:20px; }
     </style>
 </head>
@@ -64,10 +152,8 @@ DASHBOARD_HTML = """
     <p>Auto-refreshes every 30 seconds • Powered by WHO + NHM Guidelines</p>
 </div>
 
-<div class="header" style="background:#0a6b52;padding:10px 24px;">
-    <p style="font-size:13px;opacity:1">
-        🏥 ASHA ID: <strong>{{ asha_id }}</strong>
-    </p>
+<div class="header-sub">
+    <p>🏥 ASHA ID: <strong>{{ asha_id }}</strong></p>
 </div>
 
 <div class="stats">
@@ -85,23 +171,72 @@ DASHBOARD_HTML = """
     </div>
 </div>
 
+<!-- ALERTS SECTION -->
 <p class="section">⚠️ High Risk Alerts</p>
 {% if alerts %}
     {% for a in alerts %}
-    <div class="alert-card">
+
+    <!-- Card color based on status -->
+    <div class="alert-card
+        {% if a.status == 'Attended' %}attended
+        {% elif a.status == 'Resolved' %}resolved
+        {% endif %}">
+
         <div style="display:flex;justify-content:space-between;align-items:center">
             <div class="alert-name">{{ a.name }}</div>
-            <span class="badge badge-red">HIGH RISK</span>
+            <span class="badge
+                {% if a.status == 'Pending' %}badge-red
+                {% elif a.status == 'Attended' %}badge-amber
+                {% else %}badge-green{% endif %}">
+                {{ a.status | upper }}
+            </span>
         </div>
+
         <div class="alert-detail">Week {{ a.week }} • {{ a.symptom }}</div>
         <div class="alert-detail">📞 {{ a.phone }}</div>
         <div class="alert-time">🕐 {{ a.time }}</div>
+
+        <!-- Status flow indicator -->
+        <div class="status-flow">
+            <span class="step step-done">🔴 Pending</span>
+            <span class="step-arrow">→</span>
+            <span class="step
+                {% if a.status == 'Attended' or a.status == 'Resolved' %}step-done
+                {% else %}step-pending{% endif %}">
+                🟡 Attended
+            </span>
+            <span class="step-arrow">→</span>
+            <span class="step
+                {% if a.status == 'Resolved' %}step-done
+                {% else %}step-pending{% endif %}">
+                🟢 Resolved
+            </span>
+        </div>
+
+        <!-- Mark as Attended button — only show if Pending -->
+        {% if a.status == 'Pending' %}
+        <form method="POST" action="/dashboard/{{ asha_id }}/attend/{{ a.id }}">
+            <button type="submit" class="btn-attend">
+                ✅ Mark as Attended
+            </button>
+        </form>
+        {% elif a.status == 'Attended' %}
+        <p style="font-size:12px;color:#f59e0b;margin-top:8px">
+            ⏳ Waiting for patient to confirm recovery on WhatsApp...
+        </p>
+        {% elif a.status == 'Resolved' %}
+        <p style="font-size:12px;color:#10b981;margin-top:8px">
+            ✅ Patient confirmed recovery. Case closed.
+        </p>
+        {% endif %}
+
     </div>
     {% endfor %}
 {% else %}
     <div class="empty">✅ No high risk alerts right now</div>
 {% endif %}
 
+<!-- PATIENTS SECTION -->
 <p class="section" style="margin-top:12px">👩 Registered Patients</p>
 {% if patients %}
     {% for phone, p in patients.items() %}
