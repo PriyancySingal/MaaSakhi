@@ -527,7 +527,17 @@ def get_all_alerts_admin():
         with engine.connect() as conn:
             results = conn.execute(
                 text("""
-                    SELECT aa.*, aw.name as asha_name, aw.village
+                    SELECT
+                        aa.id,
+                        aa.phone,
+                        aa.name,
+                        aa.week,
+                        aa.symptom,
+                        aa.asha_id,
+                        aa.status,
+                        aa.created_at,
+                        aw.name as asha_name,
+                        aw.village
                     FROM asha_alerts aa
                     LEFT JOIN asha_workers aw ON aa.asha_id = aw.asha_id
                     ORDER BY aa.created_at DESC
