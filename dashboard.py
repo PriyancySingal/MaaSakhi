@@ -586,3 +586,30 @@ def get_alert_count_db(asha_id="default_asha"):
     except Exception as e:
         print(f"Get alert count error: {e}")
         return 0
+
+def render_dashboard(patients, high_risk, total, safe, asha_id):
+    from database import get_all_asha_alerts, get_symptom_logs, get_risk_score_from_db
+    alerts        = get_all_asha_alerts(asha_id)
+    total_reports = sum(
+        len(get_symptom_logs(phone)) for phone in patients
+    )
+
+    patient_risks = {}
+    for phone in patients:
+        score, risk_level, summary = get_risk_score_from_db(phone)
+        patient_risks[phone] = {
+            "score": score,
+            "level": risk_level
+        }
+
+    return render_template_string(
+        DASHBOARD_HTML,
+        alerts=alerts,
+        patients=patients,
+        high_risk=high_risk,
+        total=total,
+        safe=safe,
+        total_reports=total_reports,
+        patient_risks=patient_risks,
+        asha_id=asha_id
+    )
