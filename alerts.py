@@ -1,7 +1,6 @@
 # ─────────────────────────────────────────────────────────────────
 # MaaSakhi ASHA Alert System
-# Now uses PostgreSQL database for permanent storage
-# + Sends real WhatsApp alerts to ASHA worker
+# Sends real WhatsApp alert to the CORRECT ASHA worker
 # ─────────────────────────────────────────────────────────────────
 
 import os
@@ -11,11 +10,18 @@ from twilio.rest import Client
 TWILIO_ACCOUNT_SID     = os.environ.get("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN      = os.environ.get("TWILIO_AUTH_TOKEN", "")
 TWILIO_WHATSAPP_NUMBER = "whatsapp:+14155238886"
-ASHA_WORKER_NUMBER     = os.environ.get("ASHA_NUMBER", "")
 
 
-def send_whatsapp_alert(name, week, symptom, phone):
-    """Send real WhatsApp message to ASHA worker."""
+def send_whatsapp_alert(name, week, symptom, phone, asha_number):
+    """Send real WhatsApp message to the correct ASHA worker."""
+    if not asha_number:
+        print("No ASHA number provided — skipping WhatsApp alert")
+        return False
+
+    # Make sure number has whatsapp: prefix
+    if not asha_number.startswith("whatsapp:"):
+        asha_number = "whatsapp:" + asha_number
+
     try:
         client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
@@ -32,11 +38,11 @@ def send_whatsapp_alert(name, week, symptom, phone):
 
         message = client.messages.create(
             from_=TWILIO_WHATSAPP_NUMBER,
-            to=ASHA_WORKER_NUMBER,
+            to=asha_number,
             body=alert_message
         )
 
-        print(f"ASHA WhatsApp alert sent! SID: {message.sid}")
+        print(f"WhatsApp alert sent to {asha_number}! SID: {message.sid}")
         return True
 
     except Exception as e:
@@ -44,12 +50,11 @@ def send_whatsapp_alert(name, week, symptom, phone):
         return False
 
 
-def save_alert(name, week, symptom, phone):
+def save_alert(name, week, symptom, phone, asha_id=None):
     """
-    Sends real WhatsApp alert to ASHA worker.
-    Database saving is handled by save_asha_alert_db in app.py.
+    Sends real WhatsApp alert to the correct ASHA worker.
+    Looks up ASHA worker phone from database using asha_id.
     """
-    # Print to terminal
     print(f"""
 ╔══════════════════════════════════════╗
   ⚠️  HIGH RISK ALERT — MaaSakhi
@@ -63,8 +68,31 @@ def save_alert(name, week, symptom, phone):
 ╚══════════════════════════════════════╝
 """)
 
-    # Send real WhatsApp to ASHA worker
-    if ASHA_WORKER_NUMBER:
-        send_whatsapp_alert(name, week, symptom, phone)
+    # Get ASHA worker phone from database
+    asha_number = None
+
+    if asha_id and asha_id != "default_asha":
+        try:
+            from database import get_asha_by_phone, engine
+            from sqlalchemy import text
+            with engine.connect() as conn:
+                result = conn.execute(
+                    text("SELECT phone FROM asha_workers WHERE asha_id = :id"),
+                    {"id": asha_id}
+                ).fetchone()
+                if result:
+                    asha_number = result.phone
+                    print(f"Found ASHA worker phone: {asha_number}")
+        except Exception as e:
+            print(f"Error getting ASHA phone: {e}")
+
+    # Fallback to environment variable
+    if not asha_number:
+        asha_number = os.environ.get("ASHA_NUMBER", "")
+        print(f"Using fallback ASHA_NUMBER: {asha_number}")
+
+    # Send WhatsApp
+    if asha_number:
+        send_whatsapp_alert(name, week, symptom, phone, asha_number)
     else:
-        print("ASHA_NUMBER not set — skipping WhatsApp alert")
+        print("No ASHA number found — skipping WhatsApp alert")

@@ -389,7 +389,8 @@ def whatsapp_reply():
             )
             save_alert(
                 user["name"], user["week"],
-                incoming_msg, sender
+                incoming_msg, sender,
+                user.get("asha_id", "default_asha")
             )
 
         elif level == "AMBER":
