@@ -512,7 +512,7 @@ def render_admin_panel(admin_name, tab, message=None, success=True):
     # Stats
     total_asha     = len(asha_workers)
     total_patients = len(all_patients)
-    total_alerts   = len(all_alerts)
+    total_alerts   = len([a for a in all_alerts if a["status"] != "Resolved"])
     total_villages = len(set(a["village"] for a in asha_workers))
 
     # Per-ASHA stats
