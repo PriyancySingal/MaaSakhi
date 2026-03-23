@@ -1,150 +1,588 @@
 # ─────────────────────────────────────────────────────────────────
-# MaaSakhi ASHA Worker Dashboard
-# Accessible at: your-url/dashboard
+# MaaSakhi Database Layer
+# PostgreSQL via SQLAlchemy
+# 3-Tier: Admin → ASHA Workers → Patients
 # ─────────────────────────────────────────────────────────────────
 
-from flask import render_template_string
+import os
+from datetime import datetime
+from sqlalchemy import create_engine, text
+
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+engine = create_engine(DATABASE_URL) if DATABASE_URL else None
 
 
+def init_db():
+    """Create all tables if they don't exist."""
+    if not engine:
+        print("No database URL — using memory mode")
+        return
 
-DASHBOARD_HTML = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>MaaSakhi — ASHA Dashboard</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="refresh" content="30">
-    <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family: Arial, sans-serif; background:#f0faf5; color:#2c2c2a; }
+    with engine.connect() as conn:
 
-        .header { background:#085041; color:white; padding:20px 24px; }
-        .header h1 { font-size:22px; }
-        .header p  { font-size:13px; opacity:0.8; margin-top:4px; }
+        # Admin table
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS admins (
+                id          SERIAL PRIMARY KEY,
+                username    TEXT UNIQUE NOT NULL,
+                password    TEXT NOT NULL,
+                name        TEXT,
+                created_at  TIMESTAMP DEFAULT NOW()
+            )
+        """))
 
-        .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; padding:20px; }
-        .stat  { background:white; border-radius:12px; padding:16px; text-align:center; border:1px solid #e1f5ee; }
-        .stat-number { font-size:36px; font-weight:bold; }
-        .stat-label  { font-size:12px; color:#888; margin-top:4px; }
+        # ASHA workers table
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS asha_workers (
+                asha_id     TEXT PRIMARY KEY,
+                name        TEXT NOT NULL,
+                phone       TEXT UNIQUE NOT NULL,
+                village     TEXT NOT NULL,
+                district    TEXT,
+                is_active   BOOLEAN DEFAULT TRUE,
+                created_at  TIMESTAMP DEFAULT NOW()
+            )
+        """))
 
-        .section { padding:0 20px 10px; font-size:12px; font-weight:bold;
-                   color:#085041; text-transform:uppercase; letter-spacing:.06em; margin-top:8px; }
+        # Patients table
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS patients (
+                phone       TEXT PRIMARY KEY,
+                name        TEXT,
+                week        INTEGER,
+                step        TEXT DEFAULT 'welcome',
+                language    TEXT DEFAULT 'Hindi',
+                asha_id     TEXT,
+                village     TEXT,
+                created_at  TIMESTAMP DEFAULT NOW(),
+                updated_at  TIMESTAMP DEFAULT NOW()
+            )
+        """))
 
-        .alert-card { margin:0 20px 12px; background:white; border-radius:12px;
-                      padding:16px; border-left:4px solid #e24b4a; }
-        .alert-name   { font-weight:bold; font-size:15px; }
-        .alert-detail { font-size:13px; color:#666; margin-top:4px; }
-        .alert-time   { font-size:12px; color:#aaa; margin-top:6px; }
+        # Symptom logs table
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS symptom_logs (
+                id          SERIAL PRIMARY KEY,
+                phone       TEXT,
+                week        INTEGER,
+                message     TEXT,
+                level       TEXT,
+                created_at  TIMESTAMP DEFAULT NOW()
+            )
+        """))
 
-        .badge     { display:inline-block; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:bold; }
-        .badge-red { background:#fcebeb; color:#a32d2d; }
-        .badge-ok  { background:#eaf3de; color:#3b6d11; }
+        # ASHA alerts table
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS asha_alerts (
+                id          SERIAL PRIMARY KEY,
+                phone       TEXT,
+                name        TEXT,
+                week        INTEGER,
+                symptom     TEXT,
+                asha_id     TEXT,
+                status      TEXT DEFAULT 'Pending',
+                created_at  TIMESTAMP DEFAULT NOW()
+            )
+        """))
 
-        .patient-row { background:white; border-radius:10px; padding:14px 16px;
-                       margin:0 20px 8px; display:flex; justify-content:space-between;
-                       align-items:center; border:1px solid #e1f5ee; }
-        .patient-name   { font-weight:500; font-size:14px; }
-        .patient-detail { font-size:12px; color:#888; margin-top:2px; }
+        # Seed default admin if not exists
+        conn.execute(text("""
+            INSERT INTO admins (username, password, name)
+            VALUES ('admin', 'maasakhi2026', 'District Admin')
+            ON CONFLICT (username) DO NOTHING
+        """))
 
-        .empty { text-align:center; padding:30px; color:#aaa; font-size:14px; }
-
-        .footer { text-align:center; font-size:12px; color:#aaa; padding:20px; }
-    </style>
-</head>
-<body>
-
-
-
-<div class="header">
-    <h1>🌸 MaaSakhi Dashboard</h1>
-    <p>ASHA ID: {{ asha_id }}</p>
-</div>
-
-<div class="stats">
-    <div class="stat">
-        <div class="stat-number" style="color:#e24b4a">{{ high_risk }}</div>
-        <div class="stat-label">High Risk Alerts</div>
-    </div>
-    <div class="stat">
-        <div class="stat-number" style="color:#ba7517">{{ total }}</div>
-        <div class="stat-label">Total Registered</div>
-    </div>
-    <div class="stat">
-        <div class="stat-number" style="color:#085041">{{ safe }}</div>
-        <div class="stat-label">Safe Patients</div>
-    </div>
-</div>
-
-<p class="section">⚠️ High Risk Alerts</p>
-{% if alerts %}
-    {% for a in alerts %}
-    <div class="alert-card">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-            <div class="alert-name">{{ a.name }}</div>
-            <span class="badge badge-red">HIGH RISK</span>
-        </div>
-        <div class="alert-detail">Week {{ a.week }} • {{ a.symptom }}</div>
-        <div class="alert-detail">📞 {{ a.phone }}</div>
-        <div class="alert-time">🕐 {{ a.time }}</div>
-    </div>
-    {% endfor %}
-{% else %}
-    <div class="empty">✅ No high risk alerts right now</div>
-{% endif %}
-
-<p class="section" style="margin-top:12px">👩 Registered Patients</p>
-{% if patients %}
-    {% for phone, p in patients.items() %}
-    {% if p.step == 'registered' %}
+        conn.commit()
+        print("Database tables created successfully!")
 
 
-    
-    <div class="patient-row">
-        <div>
-            <div class="patient-name">{{ p.name }}</div>
-            <div class="patient-detail">Week {{ p.week }} • {{ phone }}</div>
-        </div>
-        <span class="badge badge-ok">Active</span>
-    </div>
-    
-    {% endif %}
-    {% endfor %}
-{% else %}
-    <div class="empty">No patients registered yet</div>
-{% endif %}
+# ── ADMIN FUNCTIONS ───────────────────────────────────────────────
 
-<div class="footer">
-    MaaSakhi • Built for WitchHunt 2026 • Powered by WHO + NHM + FOGSI Guidelines
-</div>
-
-</body>
-</html>
-"""
+def verify_admin(username, password):
+    """Verify admin credentials."""
+    if not engine:
+        return None
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT * FROM admins WHERE username = :u AND password = :p"),
+                {"u": username, "p": password}
+            ).fetchone()
+            if result:
+                return {"id": result.id, "name": result.name, "username": result.username}
+            return None
+    except Exception as e:
+        print(f"Admin verify error: {e}")
+        return None
 
 
-def render_dashboard(patients, high_risk, total, safe,asha_id):
-    from database import get_all_asha_alerts, get_symptom_logs, get_risk_score_from_db
-    alerts        = get_all_asha_alerts(asha_id)
-    total_reports = sum(
-        len(get_symptom_logs(phone)) for phone in patients
+# ── ASHA WORKER FUNCTIONS ─────────────────────────────────────────
+
+def add_asha_worker(asha_id, name, phone, village, district=""):
+    """Add a new ASHA worker."""
+    if not engine:
+        return False
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                INSERT INTO asha_workers (asha_id, name, phone, village, district)
+                VALUES (:asha_id, :name, :phone, :village, :district)
+                ON CONFLICT (asha_id) DO UPDATE SET
+                    name     = :name,
+                    phone    = :phone,
+                    village  = :village,
+                    district = :district
+            """), {
+                "asha_id":  asha_id,
+                "name":     name,
+                "phone":    phone,
+                "village":  village,
+                "district": district
+            })
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Add ASHA error: {e}")
+        return False
+
+
+def get_all_asha_workers():
+    """Get all ASHA workers."""
+    if not engine:
+        return []
+    try:
+        with engine.connect() as conn:
+            results = conn.execute(
+                text("SELECT * FROM asha_workers ORDER BY village, name")
+            ).fetchall()
+            return [{
+                "asha_id":   r.asha_id,
+                "name":      r.name,
+                "phone":     r.phone,
+                "village":   r.village,
+                "district":  r.district,
+                "is_active": r.is_active
+            } for r in results]
+    except Exception as e:
+        print(f"Get all ASHA error: {e}")
+        return []
+
+
+def get_asha_by_village(village):
+    """
+    Smart assignment — finds ASHA worker in village
+    with FEWEST active patients (real-time load balancing).
+    """
+    if not engine:
+        return None
+    try:
+        with engine.connect() as conn:
+            # Get all active ASHA workers in this village
+            # with their current patient count
+            result = conn.execute(text("""
+                SELECT
+                    a.asha_id,
+                    a.name,
+                    a.phone,
+                    a.village,
+                    COUNT(p.phone) AS patient_count
+                FROM asha_workers a
+                LEFT JOIN patients p
+                    ON p.asha_id = a.asha_id
+                    AND p.step = 'registered'
+                WHERE LOWER(a.village) = LOWER(:village)
+                AND a.is_active = TRUE
+                GROUP BY a.asha_id, a.name, a.phone, a.village
+                ORDER BY patient_count ASC
+                LIMIT 1
+            """), {"village": village}).fetchone()
+
+            if result:
+                return {
+                    "asha_id":       result.asha_id,
+                    "name":          result.name,
+                    "phone":         result.phone,
+                    "patient_count": result.patient_count
+                }
+            return None
+    except Exception as e:
+        print(f"Get ASHA by village error: {e}")
+        return None
+
+
+def get_asha_by_phone(phone):
+    """Get ASHA worker by phone number."""
+    if not engine:
+        return None
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT * FROM asha_workers WHERE phone = :phone"),
+                {"phone": phone}
+            ).fetchone()
+            if result:
+                return {
+                    "asha_id": result.asha_id,
+                    "name":    result.name,
+                    "phone":   result.phone,
+                    "village": result.village
+                }
+            return None
+    except Exception as e:
+        print(f"Get ASHA by phone error: {e}")
+        return None
+
+
+def toggle_asha_status(asha_id):
+    """Activate or deactivate an ASHA worker."""
+    if not engine:
+        return False
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                UPDATE asha_workers
+                SET is_active = NOT is_active
+                WHERE asha_id = :asha_id
+            """), {"asha_id": asha_id})
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Toggle ASHA error: {e}")
+        return False
+
+
+def delete_asha_worker(asha_id):
+    """Delete an ASHA worker."""
+    if not engine:
+        return False
+    try:
+        with engine.connect() as conn:
+            conn.execute(text(
+                "DELETE FROM asha_workers WHERE asha_id = :asha_id"
+            ), {"asha_id": asha_id})
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Delete ASHA error: {e}")
+        return False
+
+
+def get_asha_stats(asha_id):
+    """Get stats for a specific ASHA worker."""
+    if not engine:
+        return {}
+    try:
+        with engine.connect() as conn:
+            total = conn.execute(
+                text("SELECT COUNT(*) FROM patients WHERE asha_id = :id AND step = 'registered'"),
+                {"id": asha_id}
+            ).fetchone()[0]
+
+            high_risk = conn.execute(
+                text("SELECT COUNT(*) FROM asha_alerts WHERE asha_id = :id"),
+                {"id": asha_id}
+            ).fetchone()[0]
+
+            return {
+                "total_patients": total,
+                "high_risk_alerts": high_risk,
+                "safe_patients": max(total - high_risk, 0)
+            }
+    except Exception as e:
+        print(f"Get ASHA stats error: {e}")
+        return {"total_patients": 0, "high_risk_alerts": 0, "safe_patients": 0}
+
+
+# ── PATIENT FUNCTIONS ─────────────────────────────────────────────
+
+def get_patient(phone):
+    """Get patient from database."""
+    if not engine:
+        return None
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT * FROM patients WHERE phone = :phone"),
+                {"phone": phone}
+            ).fetchone()
+            if result:
+                return {
+                    "phone":    result.phone,
+                    "name":     result.name,
+                    "week":     result.week,
+                    "step":     result.step,
+                    "language": result.language,
+                    "asha_id":  result.asha_id if result.asha_id else "default_asha",
+                    "village":  result.village if result.village else ""
+                }
+            return None
+    except Exception as e:
+        print(f"Get patient error: {e}")
+        return None
+
+
+def save_patient(phone, name, week, step, language="Hindi", asha_id="default_asha", village=""):
+    """Save or update patient."""
+    if not engine:
+        return
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                INSERT INTO patients
+                    (phone, name, week, step, language, asha_id, village, updated_at)
+                VALUES
+                    (:phone, :name, :week, :step, :language, :asha_id, :village, NOW())
+                ON CONFLICT (phone) DO UPDATE SET
+                    name       = :name,
+                    week       = :week,
+                    step       = :step,
+                    language   = :language,
+                    asha_id    = :asha_id,
+                    village    = :village,
+                    updated_at = NOW()
+            """), {
+                "phone":    phone,
+                "name":     name,
+                "week":     week,
+                "step":     step,
+                "language": language,
+                "asha_id":  asha_id,
+                "village":  village
+            })
+            conn.commit()
+    except Exception as e:
+        print(f"Save patient error: {e}")
+
+
+def get_all_patients(asha_id="default_asha"):
+    """Get all registered patients for an ASHA worker."""
+    if not engine:
+        return {}
+    try:
+        with engine.connect() as conn:
+            results = conn.execute(
+                text("""
+                    SELECT * FROM patients
+                    WHERE step = 'registered'
+                    AND asha_id = :asha_id
+                """),
+                {"asha_id": asha_id}
+            ).fetchall()
+            patients = {}
+            for r in results:
+                patients[r.phone] = {
+                    "phone":    r.phone,
+                    "name":     r.name,
+                    "week":     r.week,
+                    "step":     r.step,
+                    "language": r.language,
+                    "village":  r.village if r.village else ""
+                }
+            return patients
+    except Exception as e:
+        print(f"Get all patients error: {e}")
+        return {}
+
+
+def get_all_patients_admin():
+    """Get ALL patients across all ASHA workers for admin view."""
+    if not engine:
+        return {}
+    try:
+        with engine.connect() as conn:
+            results = conn.execute(
+                text("SELECT * FROM patients WHERE step = 'registered' ORDER BY village")
+            ).fetchall()
+            patients = {}
+            for r in results:
+                patients[r.phone] = {
+                    "phone":    r.phone,
+                    "name":     r.name,
+                    "week":     r.week,
+                    "step":     r.step,
+                    "language": r.language,
+                    "asha_id":  r.asha_id,
+                    "village":  r.village if r.village else ""
+                }
+            return patients
+    except Exception as e:
+        print(f"Get all patients admin error: {e}")
+        return {}
+
+
+# ── SYMPTOM LOG FUNCTIONS ─────────────────────────────────────────
+
+def save_symptom_log(phone, week, message, level):
+    """Save symptom to database."""
+    if not engine:
+        return
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                INSERT INTO symptom_logs (phone, week, message, level)
+                VALUES (:phone, :week, :message, :level)
+            """), {
+                "phone":   phone,
+                "week":    week,
+                "message": message,
+                "level":   level
+            })
+            conn.commit()
+    except Exception as e:
+        print(f"Save symptom log error: {e}")
+
+
+def get_symptom_logs(phone):
+    """Get all symptom logs for a patient."""
+    if not engine:
+        return []
+    try:
+        with engine.connect() as conn:
+            results = conn.execute(
+                text("""
+                    SELECT * FROM symptom_logs
+                    WHERE phone = :phone
+                    ORDER BY created_at ASC
+                """),
+                {"phone": phone}
+            ).fetchall()
+            return [{
+                "week":    r.week,
+                "message": r.message,
+                "level":   r.level,
+                "time":    r.created_at.strftime("%d %b %Y, %I:%M %p")
+            } for r in results]
+    except Exception as e:
+        print(f"Get symptom logs error: {e}")
+        return []
+
+
+def get_risk_score_from_db(phone):
+    """Calculate risk score from symptom history."""
+    logs = get_symptom_logs(phone)
+    if not logs:
+        return 0, "Unknown", "No reports yet"
+
+    red_count   = sum(1 for e in logs if e["level"] == "RED")
+    amber_count = sum(1 for e in logs if e["level"] == "AMBER")
+    green_count = sum(1 for e in logs if e["level"] == "GREEN")
+    total       = len(logs)
+
+    score = min(100, (red_count * 40) + (amber_count * 15) + (green_count * 2))
+    recent      = logs[-3:] if len(logs) >= 3 else logs
+    recent_reds = sum(1 for e in recent if e["level"] == "RED")
+    if recent_reds >= 2:
+        score = min(100, score + 20)
+
+    if score >= 60 or red_count >= 2:
+        risk_level = "HIGH"
+    elif score >= 30 or red_count >= 1:
+        risk_level = "MODERATE"
+    else:
+        risk_level = "LOW"
+
+    summary = (
+        f"Total: {total} | Danger: {red_count} | "
+        f"Warning: {amber_count} | Normal: {green_count}"
     )
+    return score, risk_level, summary
 
-    patient_risks = {}
-    for phone in patients:
-        score, risk_level, summary = get_risk_score_from_db(phone)
-        patient_risks[phone] = {
-            "score": score,
-            "level": risk_level
-        }
 
-    return render_template_string(
-        DASHBOARD_HTML,
-        alerts=alerts,
-        patients=patients,
-        high_risk=high_risk,
-        total=total,
-        safe=safe,
-        total_reports=total_reports,
-        patient_risks=patient_risks,
-        asha_id=asha_id
-    )
+# ── ASHA ALERT FUNCTIONS ──────────────────────────────────────────
+
+def save_asha_alert_db(phone, name, week, symptom, asha_id):
+    """Save ASHA alert to database."""
+    if not engine:
+        return
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                INSERT INTO asha_alerts (phone, name, week, symptom, asha_id)
+                VALUES (:phone, :name, :week, :symptom, :asha_id)
+            """), {
+                "phone":   phone,
+                "name":    name,
+                "week":    week,
+                "symptom": symptom,
+                "asha_id": asha_id
+            })
+            conn.commit()
+    except Exception as e:
+        print(f"Save ASHA alert error: {e}")
+
+
+def get_all_asha_alerts(asha_id):
+    """Get all alerts for a specific ASHA worker."""
+    if not engine:
+        return []
+    try:
+        with engine.connect() as conn:
+            results = conn.execute(
+                text("""
+                    SELECT * FROM asha_alerts
+                    WHERE asha_id = :asha_id
+                    ORDER BY created_at DESC
+                """),
+                {"asha_id": asha_id}
+            ).fetchall()
+            return [{
+                "name":    r.name,
+                "week":    r.week,
+                "symptom": r.symptom,
+                "phone":   r.phone,
+                "time":    r.created_at.strftime("%d %b %Y, %I:%M %p"),
+                "status":  r.status
+            } for r in results]
+    except Exception as e:
+        print(f"Get ASHA alerts error: {e}")
+        return []
+
+
+def get_all_alerts_admin():
+    """Get ALL alerts across all ASHA workers for admin view."""
+    if not engine:
+        return []
+    try:
+        with engine.connect() as conn:
+            results = conn.execute(
+                text("""
+                    SELECT aa.*, aw.name as asha_name, aw.village
+                    FROM asha_alerts aa
+                    LEFT JOIN asha_workers aw ON aa.asha_id = aw.asha_id
+                    ORDER BY aa.created_at DESC
+                """)
+            ).fetchall()
+            return [{
+                "name":      r.name,
+                "week":      r.week,
+                "symptom":   r.symptom,
+                "phone":     r.phone,
+                "time":      r.created_at.strftime("%d %b %Y, %I:%M %p"),
+                "status":    r.status,
+                "asha_id":   r.asha_id,
+                "asha_name": r.asha_name,
+                "village":   r.village
+            } for r in results]
+    except Exception as e:
+        print(f"Get all alerts admin error: {e}")
+        return []
+
+
+def get_alert_count_db(asha_id="default_asha"):
+    """Get alert count for specific ASHA worker."""
+    if not engine:
+        return 0
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT COUNT(*) FROM asha_alerts WHERE asha_id = :asha_id"),
+                {"asha_id": asha_id}
+            ).fetchone()
+            return result[0]
+    except Exception as e:
+        print(f"Get alert count error: {e}")
+        return 0

@@ -4,7 +4,7 @@
 # Built for WitchHunt Hackathon 2026
 # ─────────────────────────────────────────────────────────────────
 
-from flask import Flask, request,render_template_string
+from flask import Flask, request,render_template_string, session
 from twilio.twiml.messaging_response import MessagingResponse
 from config import PORT, DEBUG, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN
 from voice import transcribe_voice_note
@@ -22,6 +22,12 @@ from database import (
     init_db, get_patient, save_patient, get_all_patients,
     save_symptom_log, get_all_asha_alerts, get_alert_count_db,
     save_asha_alert_db
+)
+from admin import render_admin_login, render_admin_panel
+from database import (
+    verify_admin, add_asha_worker,
+    toggle_asha_status, delete_asha_worker,
+    get_all_alerts_admin
 )
 
 
@@ -43,6 +49,7 @@ def detect_language(text):
 
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "maasakhi2026secret")
 
 
 
@@ -130,6 +137,15 @@ HOMEPAGE_HTML = """
             color:white;
             text-decoration:none;
             border-radius:8px;
+	    font-weight:bold;
+        }
+        .btn-admin{
+	    background:#2D1267;
+            border:1px solid #5B2FBF;
+            margin-top:20px;
+        }
+        .btn-admin:hover {
+            background:#3D1A8C;
         }
         .footer {
             text-align:center;
@@ -184,7 +200,14 @@ HOMEPAGE_HTML = """
         <div class="card">🌍 Multi-language Support</div>
     </div>
 
-    <a href="/login" class="btn">Login as ASHA Worker</a>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px">
+    <a href="/login" class="btn">
+        👩 Login as ASHA Worker
+    </a>
+    <a href="/admin/login" class="btn btn-admin">
+        🔐 Admin Login
+    </a>
+</div>
 </div>
 
 <div class="footer">
@@ -490,6 +513,80 @@ def login():
 @app.route("/")
 def home():
     return render_template_string(HOMEPAGE_HTML)
+
+# ── ADMIN LOGIN ───────────────────────────────────────────────────
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        admin = verify_admin(username, password)
+        if admin:
+            session["admin"] = admin
+            return redirect("/admin")
+        return render_admin_login(error="Invalid username or password")
+    return render_admin_login()
+
+
+@app.route("/admin/logout")
+def admin_logout():
+    session.pop("admin", None)
+    return redirect("/admin/login")
+
+
+# ── ADMIN DASHBOARD ───────────────────────────────────────────────
+@app.route("/admin")
+def admin_dashboard():
+    if "admin" not in session:
+        return redirect("/admin/login")
+    tab = request.args.get("tab", "asha")
+    return render_admin_panel(
+        admin_name=session["admin"]["name"],
+        tab=tab
+    )
+
+
+# ── ADD ASHA WORKER ───────────────────────────────────────────────
+@app.route("/admin/add-asha", methods=["POST"])
+def admin_add_asha():
+    if "admin" not in session:
+        return redirect("/admin/login")
+    asha_id  = request.form.get("asha_id", "").strip()
+    name     = request.form.get("name", "").strip()
+    phone    = request.form.get("phone", "").strip()
+    village  = request.form.get("village", "").strip()
+    district = request.form.get("district", "").strip()
+
+    success = add_asha_worker(asha_id, name, phone, village, district)
+    tab = request.args.get("tab", "asha")
+    return render_admin_panel(
+        admin_name=session["admin"]["name"],
+        tab="asha",
+        message="ASHA worker added successfully!" if success else "Failed to add ASHA worker.",
+        success=success
+    )
+
+
+# ── TOGGLE ASHA STATUS ────────────────────────────────────────────
+@app.route("/admin/toggle-asha", methods=["POST"])
+def admin_toggle_asha():
+    if "admin" not in session:
+        return redirect("/admin/login")
+    asha_id = request.form.get("asha_id")
+    toggle_asha_status(asha_id)
+    return redirect("/admin?tab=asha")
+
+
+# ── DELETE ASHA WORKER ────────────────────────────────────────────
+@app.route("/admin/delete-asha", methods=["POST"])
+def admin_delete_asha():
+    if "admin" not in session:
+        return redirect("/admin/login")
+    asha_id = request.form.get("asha_id")
+    delete_asha_worker(asha_id)
+    return redirect("/admin?tab=asha")
+
+
 
 
 # ── Run ───────────────────────────────────────────────────────────
