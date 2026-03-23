@@ -586,6 +586,31 @@ def admin_delete_asha():
     delete_asha_worker(asha_id)
     return redirect("/admin?tab=asha")
 
+@app.route("/migrate-db")
+def migrate_db():
+    from database import engine
+    from sqlalchemy import text
+    results = []
+    migrations = [
+        "ALTER TABLE patients ADD COLUMN IF NOT EXISTS village TEXT",
+        "ALTER TABLE asha_workers ADD COLUMN IF NOT EXISTS district TEXT",
+        "ALTER TABLE asha_workers ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
+        "ALTER TABLE asha_alerts ADD COLUMN IF NOT EXISTS asha_id TEXT",
+        "CREATE TABLE IF NOT EXISTS admins (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, name TEXT, created_at TIMESTAMP DEFAULT NOW())",
+        "INSERT INTO admins (username, password, name) VALUES ('admin', 'maasakhi2026', 'District Admin') ON CONFLICT (username) DO NOTHING",
+    ]
+    try:
+        with engine.connect() as conn:
+            for sql in migrations:
+                try:
+                    conn.execute(text(sql))
+                    results.append(f"✅ {sql[:60]}")
+                except Exception as e:
+                    results.append(f"⚠️ {sql[:60]} — {str(e)[:50]}")
+            conn.commit()
+        return "<br>".join(results) + "<br><br>✅ Migration complete! <a href='/admin'>Go to Admin</a>"
+    except Exception as e:
+        return f"❌ Error: {e}"
 
 
 
