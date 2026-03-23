@@ -133,16 +133,24 @@ HOMEPAGE_HTML = """
 init_db()
 
 
-# ── Patient confirms recovery check ──────────────────────────────
+# ── Recovery confirmation check ───────────────────────────────────
 def handle_recovery_confirmation(sender, user, msg):
-    """Check if patient is confirming recovery."""
+    """Returns BETTER, NOT_WELL or None."""
     recovery_keywords = [
         "i am better", "i am fine", "theek hoon", "theek hu",
         "better now", "feeling better", "mujhe theek", "ab theek",
         "recovered", "all good", "sahi hoon", "achha feel"
     ]
+    not_well_keywords = [
+        "still not", "abhi bhi", "nahi theek", "not better",
+        "still sick", "still pain", "still feeling well"
+    ]
     msg_lower = msg.lower()
-    return any(keyword in msg_lower for keyword in recovery_keywords)
+    if any(k in msg_lower for k in not_well_keywords):
+        return "NOT_WELL"
+    if any(k in msg_lower for k in recovery_keywords):
+        return "BETTER"
+    return None
 
 
 @app.route("/whatsapp", methods=["POST"])
@@ -190,7 +198,6 @@ def whatsapp_reply():
     if incoming_msg.lower() in ["register", "register pregnancy",
                                  "hello", "hi", "start", "namaste"]:
 
-        # Already registered — welcome back!
         if user["step"] == "registered":
             msg.body(
                 f"🌸 Welcome back {user['name']}!\n\n"
@@ -201,7 +208,6 @@ def whatsapp_reply():
             )
             return str(response)
 
-        # New registration
         user["step"] = "get_name"
         save_patient(sender, "", 0, "get_name")
         msg.body(
@@ -264,8 +270,10 @@ def whatsapp_reply():
     # ── Symptom Analysis ──────────────────────────────────────────
     elif user["step"] == "registered":
 
-        # ── Check if patient is confirming recovery ───────────────
-        if handle_recovery_confirmation(sender, user, incoming_msg):
+        # ── Recovery confirmation check ───────────────────────────
+        recovery = handle_recovery_confirmation(sender, user, incoming_msg)
+
+        if recovery == "BETTER":
             alert = get_alert_by_patient_phone(sender)
             if alert and alert["status"] == "Attended":
                 update_alert_status(alert["id"], "Resolved")
@@ -281,6 +289,22 @@ def whatsapp_reply():
                     f"Khushi hui sunke {user['name']}! 🌸\n\n"
                     f"Aapki ASHA worker abhi aapke case ko review kar rahi hain.\n"
                     f"Agar koi aur symptom ho toh zaroor batana. 💚"
+                )
+                return str(response)
+
+        elif recovery == "NOT_WELL":
+            alert = get_alert_by_patient_phone(sender)
+            if alert:
+                save_asha_alert_db(
+                    sender, user["name"],
+                    user["week"],
+                    "FOLLOW UP: Patient still not feeling well after ASHA visit",
+                    user.get("asha_id", "default_asha")
+                )
+                msg.body(
+                    f"🚨 Aapki ASHA worker ko dobara alert kar diya gaya hai, {user['name']}.\n\n"
+                    f"Please nearest health centre zaroor jaayein. 🏥\n\n"
+                    f"Aap akeli nahi hain — hum aapke saath hain. 💚"
                 )
                 return str(response)
 
@@ -380,7 +404,47 @@ def dashboard(asha_id):
 # ── ASHA marks alert as Attended ─────────────────────────────────
 @app.route("/dashboard/<asha_id>/attend/<alert_id>", methods=["POST"])
 def mark_attended(asha_id, alert_id):
+    from database import engine
+    from sqlalchemy import text
+
     update_alert_status(int(alert_id), "Attended")
+
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT * FROM asha_alerts WHERE id = :id"),
+                {"id": int(alert_id)}
+            ).fetchone()
+
+            if result:
+                patient_phone = result.phone
+                patient_name  = result.name
+
+                asha = conn.execute(
+                    text("SELECT name FROM asha_workers WHERE asha_id = :id"),
+                    {"id": asha_id}
+                ).fetchone()
+                asha_name = asha.name if asha else "Aapki ASHA worker"
+
+                from twilio.rest import Client
+                client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+                client.messages.create(
+                    from_="whatsapp:+14155238886",
+                    to=patient_phone,
+                    body=(
+                        f"🌸 Namaste {patient_name}!\n\n"
+                        f"*{asha_name}* ne aapka case attend kar liya hai. 💚\n\n"
+                        f"Kya aap ab theek feel kar rahi hain?\n\n"
+                        f"Reply karein:\n"
+                        f"✅ *'I am better'* — agar theek hain\n"
+                        f"⚠️ *'Still not feeling well'* — agar abhi bhi takleef hai"
+                    )
+                )
+                print(f"Recovery check sent to {patient_phone}")
+
+    except Exception as e:
+        print(f"Error sending recovery check: {e}")
+
     return redirect(f"/dashboard/{asha_id}")
 
 
@@ -389,7 +453,6 @@ def mark_attended(asha_id, alert_id):
 def login():
     if request.method == "POST":
         phone = request.form.get("phone", "").strip()
-        # Auto add whatsapp: prefix if missing
         if not phone.startswith("whatsapp:"):
             phone = "whatsapp:+91" + phone.replace("+91", "").replace(" ", "")
         asha = get_asha_by_phone(phone)
@@ -426,12 +489,15 @@ def login():
             }
             button {
                 margin-top:15px; width:100%; padding:12px;
-                background:#085041; color:white;
-                border:none; border-radius:8px;
-                font-size:14px; font-weight:bold; cursor:pointer;
+                background:#085041; color:white; border:none;
+                border-radius:8px; font-size:14px;
+                font-weight:bold; cursor:pointer;
             }
             .hint { font-size:11px; color:#888; margin-top:8px; }
-            .back { display:block; margin-top:16px; font-size:12px; color:#555; text-decoration:none; }
+            .back {
+                display:block; margin-top:16px;
+                font-size:12px; color:#555; text-decoration:none;
+            }
         </style>
     </head>
     <body>
@@ -439,7 +505,9 @@ def login():
             <h2>🌿 MaaSakhi</h2>
             <p>ASHA Worker Login</p>
             <form method="POST">
-                <input name="phone" placeholder="Enter your 10-digit mobile number" required />
+                <input name="phone"
+                    placeholder="Enter your 10-digit mobile number"
+                    required />
                 <p class="hint">Example: 9315168344</p>
                 <button type="submit">Login</button>
             </form>
@@ -462,7 +530,7 @@ def admin_login():
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
-        admin = verify_admin(username, password)
+        admin    = verify_admin(username, password)
         if admin:
             session["admin"] = admin
             return redirect("/admin")
@@ -493,16 +561,17 @@ def admin_dashboard():
 def admin_add_asha():
     if "admin" not in session:
         return redirect("/admin/login")
-    asha_id  = request.form.get("asha_id", "").strip()
-    name     = request.form.get("name", "").strip()
-    phone    = request.form.get("phone", "").strip()
-    village  = request.form.get("village", "").strip()
+    asha_id  = request.form.get("asha_id",  "").strip()
+    name     = request.form.get("name",     "").strip()
+    phone    = request.form.get("phone",    "").strip()
+    village  = request.form.get("village",  "").strip()
     district = request.form.get("district", "").strip()
     success  = add_asha_worker(asha_id, name, phone, village, district)
     return render_admin_panel(
         admin_name=session["admin"]["name"],
         tab="asha",
-        message="ASHA worker added successfully!" if success else "Failed to add ASHA worker.",
+        message="ASHA worker added successfully!" if success
+                else "Failed to add ASHA worker.",
         success=success
     )
 
