@@ -378,9 +378,9 @@ def dashboard(asha_id):
 
 
 # ── ASHA marks alert as Attended ─────────────────────────────────
-@app.route("/dashboard/<asha_id>/attend/<int:alert_id>", methods=["POST"])
+@app.route("/dashboard/<asha_id>/attend/<alert_id>", methods=["POST"])
 def mark_attended(asha_id, alert_id):
-    update_alert_status(alert_id, "Attended")
+    update_alert_status(int(alert_id), "Attended")
     return redirect(f"/dashboard/{asha_id}")
 
 

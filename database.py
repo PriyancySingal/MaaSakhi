@@ -508,6 +508,7 @@ def get_all_asha_alerts(asha_id):
                 {"asha_id": asha_id}
             ).fetchall()
             return [{
+                "id":      r.id,
                 "name":    r.name,
                 "week":    r.week,
                 "symptom": r.symptom,
