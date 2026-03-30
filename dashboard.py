@@ -280,7 +280,7 @@ DASHBOARD_HTML = """
 <a href="/" class="back-btn">← Back to Home</a>
 
 <div class="footer">
-    MaaSakhi • Built for WitchHunt 2026 • Powered by WHO + NHM + FOGSI Guidelines
+    MaaSakhi • Powered by WHO + NHM + FOGSI Guidelines
 </div>
 
 </body>
