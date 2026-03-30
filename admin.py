@@ -414,7 +414,7 @@ ADMIN_DASHBOARD_HTML = """
 {% endif %}
 
 <div class="footer">
-    MaaSakhi Admin • Built for WitchHunt 2026 • WHO + NHM + FOGSI Guidelines
+    MaaSakhi Admin  • WHO + NHM + FOGSI Guidelines
 </div>
 
 </body>
