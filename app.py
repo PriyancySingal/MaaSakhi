@@ -508,7 +508,7 @@ def login():
                 <input name="phone"
                     placeholder="Enter your 10-digit mobile number"
                     required />
-                <p class="hint">Example: 9315168344</p>
+                
                 <button type="submit">Login</button>
             </form>
             <a href="/" class="back">← Back to Home</a>
