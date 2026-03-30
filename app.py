@@ -121,7 +121,7 @@ HOMEPAGE_HTML = """
 </div>
 
 <div class="footer">
-    Built for WitchHunt 2026 • Powered by WHO + NHM + FOGSI Guidelines
+     • Powered by WHO + NHM + FOGSI Guidelines
 </div>
 
 </body>
