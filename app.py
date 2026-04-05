@@ -48,80 +48,440 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "maasakhi2026secret")
 
 
+# HOMEPAGE_HTML = """
+# <!DOCTYPE html>
+# <html>
+# <head>
+#     <title>MaaSakhi</title>
+#     <meta name="viewport" content="width=device-width, initial-scale=1">
+#     <style>
+#         body { font-family: Arial; margin:0; background:#f0faf5; color:#2c2c2a; }
+#         .hero { background:#085041; color:white; padding:40px 20px; }
+#         .hero-content {
+#             display:flex; justify-content:space-between; align-items:center;
+#             max-width:1000px; margin:auto; gap:20px;
+#         }
+#         .hero-text h1 { font-size:32px; }
+#         .hero-text h2 { font-size:18px; font-weight:400; margin-top:8px; }
+#         .hero-text p  { margin-top:10px; font-size:14px; opacity:0.9; }
+#         .hero-logo img {
+#             width:140px;
+#             filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.3));
+#         }
+#         .section { padding:30px 20px; text-align:center; }
+#         .features {
+#             display:grid; grid-template-columns:repeat(2,1fr);
+#             gap:12px; margin-top:20px;
+#         }
+#         .card { background:white; padding:15px; border-radius:10px; border:1px solid #e1f5ee; }
+#         .btn {
+#             display:inline-block; margin-top:20px; padding:14px 24px;
+#             background:#085041; color:white; text-decoration:none;
+#             border-radius:8px; font-weight:bold;
+#         }
+#         .btn-admin { background:#2D1267; border:1px solid #5B2FBF; margin-top:20px; }
+#         .btn-admin:hover { background:#3D1A8C; }
+#         .footer { text-align:center; font-size:12px; color:#777; padding:20px; }
+#         @media (max-width: 768px) {
+#             .hero-content { flex-direction:column; text-align:center; }
+#             .hero-logo img { width:100px; margin-top:15px; }
+#         }
+#     </style>
+# </head>
+# <body>
+
+# <div class="hero">
+#     <div class="hero-content">
+#         <div class="hero-text">
+#             <h1>🌿 MaaSakhi</h1>
+#             <h2>Maternal Health Support System for Rural India</h2>
+#             <p>In collaboration with Department of Women & Child Development</p>
+#         </div>
+#         <div class="hero-logo">
+#             <img src="/static/logo.png" alt="MaaSakhi Logo">
+#         </div>
+#     </div>
+# </div>
+
+# <div class="section">
+#     <p>
+#         MaaSakhi is an AI-powered WhatsApp assistant that helps pregnant women
+#         and supports ASHA workers with real-time health monitoring and risk detection.
+#     </p>
+#     <div class="features">
+#         <div class="card">📱 WhatsApp Monitoring</div>
+#         <div class="card">🚨 Risk Alerts</div>
+#         <div class="card">👩‍⚕️ ASHA Dashboard</div>
+#         <div class="card">🌍 Multi-language Support</div>
+#     </div>
+#     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px">
+#         <a href="/login" class="btn">👩 Login as ASHA Worker</a>
+#         <a href="/admin/login" class="btn btn-admin">🔐 Admin Login</a>
+#     </div>
+# </div>
+
+# <div class="footer">
+#      • Powered by WHO + NHM + FOGSI Guidelines
+# </div>
+
+# </body>
+# </html>
+# """
+
 HOMEPAGE_HTML = """
 <!DOCTYPE html>
 <html>
 <head>
     <title>MaaSakhi</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
     <style>
-        body { font-family: Arial; margin:0; background:#f0faf5; color:#2c2c2a; }
-        .hero { background:#085041; color:white; padding:40px 20px; }
-        .hero-content {
-            display:flex; justify-content:space-between; align-items:center;
-            max-width:1000px; margin:auto; gap:20px;
+        * { margin:0; padding:0; box-sizing:border-box; }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background:#f7faf9;
+            color:#1f2937;
         }
-        .hero-text h1 { font-size:32px; }
-        .hero-text h2 { font-size:18px; font-weight:400; margin-top:8px; }
-        .hero-text p  { margin-top:10px; font-size:14px; opacity:0.9; }
-        .hero-logo img {
-            width:140px;
-            filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.3));
+
+        /* NAVBAR */
+        .navbar {
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            padding:16px 40px;
+            background:white;
+            box-shadow:0 2px 8px rgba(0,0,0,0.05);
         }
-        .section { padding:30px 20px; text-align:center; }
-        .features {
-            display:grid; grid-template-columns:repeat(2,1fr);
-            gap:12px; margin-top:20px;
+
+        .nav-title {
+            font-weight:600;
+            font-size:20px;
+            color:#085041;
         }
-        .card { background:white; padding:15px; border-radius:10px; border:1px solid #e1f5ee; }
+
+        .nav-links a {
+            margin-left:20px;
+            text-decoration:none;
+            color:#444;
+            font-size:14px;
+            font-weight:500;
+        }
+
+        .nav-links a:hover {
+            color:#085041;
+        }
+
+        /* HERO */
+        .hero {
+            background: linear-gradient(135deg, #085041, #0a6b52);
+            color:white;
+            padding:80px 20px;
+        }
+
+        .hero-container {
+            max-width:1100px;
+            margin:auto;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:40px;
+            flex-wrap:wrap;
+        }
+
+        .hero-text {
+            max-width:500px;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .hero-text h1 {
+            font-size:38px;
+            font-weight:600;
+        }
+
+        .hero-text p {
+            margin-top:12px;
+            font-size:16px;
+            opacity:0.9;
+        }
+
+        .hero-buttons {
+            margin-top:20px;
+        }
+
         .btn {
-            display:inline-block; margin-top:20px; padding:14px 24px;
-            background:#085041; color:white; text-decoration:none;
-            border-radius:8px; font-weight:bold;
+            display:inline-block;
+            padding:12px 22px;
+            border-radius:8px;
+            text-decoration:none;
+            font-size:14px;
+            font-weight:600;
+            margin-right:10px;
         }
-        .btn-admin { background:#2D1267; border:1px solid #5B2FBF; margin-top:20px; }
-        .btn-admin:hover { background:#3D1A8C; }
-        .footer { text-align:center; font-size:12px; color:#777; padding:20px; }
-        @media (max-width: 768px) {
-            .hero-content { flex-direction:column; text-align:center; }
-            .hero-logo img { width:100px; margin-top:15px; }
+
+        .btn-primary {
+            background:white;
+            color:#085041;
         }
+
+        .btn-secondary {
+            background:#2D1267;
+            color:white;
+        }
+
+        .hero img {
+            width:160px;
+            filter: drop-shadow(0px 6px 14px rgba(0,0,0,0.3));
+        }
+
+        /* TRUST */
+        .trust {
+            text-align:center;
+            padding:30px 20px;
+            font-size:14px;
+            color:#555;
+        }
+
+        .trust span {
+            margin:0 10px;
+        }
+
+        /* FLOW SECTION */
+        .flow {
+            text-align:center;
+            padding:60px 20px;
+        }
+
+        .flow h2 {
+            font-size:26px;
+            color:#085041;
+        }
+
+        .flow-subtext {
+            margin-top:10px;
+            font-size:14px;
+            color:#666;
+            max-width:700px;
+            margin-left:auto;
+            margin-right:auto;
+        }
+
+        .flow-grid {
+            margin-top:40px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            flex-wrap:wrap;
+            gap:14px;
+        }
+
+        .flow-card {
+            background:white;
+            padding:18px;
+            border-radius:14px;
+            width:200px;
+            box-shadow:0 6px 18px rgba(0,0,0,0.08);
+            transition:0.2s;
+        }
+
+        .flow-card:hover {
+            transform:translateY(-6px);
+        }
+
+        .flow-card .icon {
+            font-size:28px;
+            margin-bottom:10px;
+        }
+
+        .flow-card h3 {
+            font-size:15px;
+            margin-bottom:6px;
+            color:#085041;
+        }
+
+        .flow-card p {
+            font-size:12px;
+            color:#666;
+        }
+
+        .flow-arrow {
+            font-size:20px;
+            color:#aaa;
+        }
+
+        /* FEATURES */
+        .features {
+            padding:50px 20px;
+            max-width:1000px;
+            margin:auto;
+            text-align:center;
+        }
+
+        .features h2 {
+            font-size:24px;
+            color:#085041;
+        }
+
+        .feature-grid {
+            display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+            gap:16px;
+            margin-top:30px;
+        }
+
+        .card {
+            background:white;
+            padding:18px;
+            border-radius:14px;
+            box-shadow:0 6px 18px rgba(0,0,0,0.08);
+            transition:0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        /* FOOTER */
+        .footer {
+            text-align:center;
+            font-size:12px;
+            color:#777;
+            padding:20px;
+        }
+
+        /* ANIMATION */
+        @keyframes fadeInUp {
+            from { opacity:0; transform: translateY(20px); }
+            to { opacity:1; transform: translateY(0); }
+        }
+
+        @media(max-width:768px){
+            .hero-container {
+                text-align:center;
+                justify-content:center;
+            }
+
+            .flow-arrow {
+                display:none;
+            }
+        }
+
     </style>
 </head>
+
 <body>
 
+<!-- NAVBAR -->
+<div class="navbar">
+    <div class="nav-title">🌿 MaaSakhi</div>
+    <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/login">ASHA Login</a>
+        <a href="/admin/login">Admin</a>
+    </div>
+</div>
+
+<!-- HERO -->
 <div class="hero">
-    <div class="hero-content">
+    <div class="hero-container">
         <div class="hero-text">
-            <h1>🌿 MaaSakhi</h1>
-            <h2>Maternal Health Support System for Rural India</h2>
-            <p>In collaboration with Department of Women & Child Development</p>
+            <h1>AI-Powered Maternal Care on WhatsApp</h1>
+            <p>
+                Empowering pregnant women and ASHA workers with real-time
+                health monitoring, risk detection, and timely interventions.
+            </p>
+
+            <div class="hero-buttons">
+                <a href="/login" class="btn btn-primary">ASHA Login</a>
+                <a href="/admin/login" class="btn btn-secondary">Admin Panel</a>
+            </div>
         </div>
-        <div class="hero-logo">
-            <img src="/static/logo.png" alt="MaaSakhi Logo">
+
+        <div>
+            <img src="/static/logo.png">
         </div>
     </div>
 </div>
 
-<div class="section">
-    <p>
-        MaaSakhi is an AI-powered WhatsApp assistant that helps pregnant women
-        and supports ASHA workers with real-time health monitoring and risk detection.
-    </p>
-    <div class="features">
+<!-- TRUST -->
+<div class="trust">
+    <span>✔ WHO Guidelines</span>
+    <span>✔ NHM Integrated</span>
+    <span>✔ Real-time Alerts</span>
+    <span>✔ Multi-language AI</span>
+</div>
+
+<!-- FEATURES -->
+<div class="features">
+    <h2>Key Features</h2>
+    <div class="feature-grid">
         <div class="card">📱 WhatsApp Monitoring</div>
-        <div class="card">🚨 Risk Alerts</div>
+        <div class="card">🚨 Risk Detection</div>
         <div class="card">👩‍⚕️ ASHA Dashboard</div>
         <div class="card">🌍 Multi-language Support</div>
     </div>
-    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px">
-        <a href="/login" class="btn">👩 Login as ASHA Worker</a>
-        <a href="/admin/login" class="btn btn-admin">🔐 Admin Login</a>
+</div>
+
+<!-- HOW IT WORKS -->
+<div class="flow">
+    <h2>How MaaSakhi Works</h2>
+    <p class="flow-subtext">
+        MaaSakhi creates a continuous care loop connecting patients, AI, and ASHA workers 
+        to ensure early detection, timely alerts, and safer maternal outcomes.
+    </p>
+
+    <div class="flow-grid">
+
+        <div class="flow-card">
+            <div class="icon">👩</div>
+            <h3>Patient Interaction</h3>
+            <p>Women report symptoms via WhatsApp in their local language.</p>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-card">
+            <div class="icon">📱</div>
+            <h3>Accessible Platform</h3>
+            <p>No app needed — works on basic smartphones across rural areas.</p>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-card">
+            <div class="icon">🤖</div>
+            <h3>AI Risk Analysis</h3>
+            <p>Analyzes symptoms using WHO guidelines to detect risk levels.</p>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-card">
+            <div class="icon">🚨</div>
+            <h3>Instant Alerts</h3>
+            <p>High-risk cases trigger alerts to ASHA workers immediately.</p>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-card">
+            <div class="icon">🏥</div>
+            <h3>Timely Care</h3>
+            <p>Ensures medical attention and follow-up for safer outcomes.</p>
+        </div>
+
     </div>
 </div>
 
+
+
+
+<!-- FOOTER -->
 <div class="footer">
-     • Powered by WHO + NHM + FOGSI Guidelines
+    MaaSakhi • AI-driven Maternal Health Support System
 </div>
 
 </body>
