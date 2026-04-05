@@ -288,6 +288,10 @@ DASHBOARD_HTML = """
 """
 
 
+
+
+
+
 def render_dashboard(patients, high_risk, total, safe, asha_id):
     from database import get_all_asha_alerts, get_symptom_logs, get_risk_score_from_db
 
