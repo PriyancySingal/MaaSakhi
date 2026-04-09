@@ -664,12 +664,6 @@ MaaSakhi/
 
 ---
 
-## Built For
-
-
-- **Open Innovation Hackathon** — Open Innovation Track
-
----
 
 ## License
 
