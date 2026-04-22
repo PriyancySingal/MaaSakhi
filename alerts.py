@@ -15,27 +15,30 @@ TWILIO_WHATSAPP_NUMBER = "whatsapp:+14155238886"
 def send_whatsapp_alert(name, week, symptom, phone, asha_number, 
                         address="", village=""):
     
-    # Build Google Maps link — opens navigation from ASHA's 
-    # current location to patient automatically
-    maps_link = ""
-    if address or village:
-        location = address if address else village
-        import urllib.parse
-        encoded  = urllib.parse.quote(location + ", India")
-        maps_link = f"https://www.google.com/maps/dir/?api=1&destination={encoded}"
+    try:
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    
+        # Build Google Maps link — opens navigation from ASHA's 
+        # current location to patient automatically
+        maps_link = ""
+        if address or village:
+            location = address if address else village
+            import urllib.parse
+            encoded  = urllib.parse.quote(location + ", India")
+            maps_link = f"https://www.google.com/maps/dir/?api=1&destination={encoded}"
 
-    alert_message = (
-        f"🚨 HIGH RISK ALERT — MaaSakhi\n\n"
-        f"👩 Patient: {name}\n"
-        f"🤰 Pregnancy Week: {week}\n"
-        f"⚠️ Symptom: {symptom}\n"
-        f"📞 Phone: {phone}\n"
-        f"📍 Village: {village}\n"
-        f"🏠 Address: {address if address else 'Not provided'}\n"
-        f"🕐 Time: {datetime.now().strftime('%d %b %Y, %I:%M %p')}\n\n"
-        f"{'📌 Navigate to patient: ' + maps_link if maps_link else ''}\n\n"
-        f"Please contact her immediately!"
-    )
+        alert_message = (
+            f"🚨 HIGH RISK ALERT — MaaSakhi\n\n"
+            f"👩 Patient: {name}\n"
+            f"🤰 Pregnancy Week: {week}\n"
+            f"⚠️ Symptom: {symptom}\n"
+            f"📞 Phone: {phone}\n"
+            f"📍 Village: {village}\n"
+            f"🏠 Address: {address if address else 'Not provided'}\n"
+            f"🕐 Time: {datetime.now().strftime('%d %b %Y, %I:%M %p')}\n\n"
+            f"{'📌 Navigate to patient: ' + maps_link if maps_link else ''}\n\n"
+            f"Please contact her immediately!"
+        )
 
         message = client.messages.create(
             from_=TWILIO_WHATSAPP_NUMBER,
@@ -94,6 +97,6 @@ def save_alert(name, week, symptom, phone, asha_id=None, address="", village="")
 
     # Send WhatsApp
     if asha_number:
-        send_whatsapp_alert(name, week, symptom, phone, asha_number,address,village)
+        send_whatsapp_alert(name, week, symptom, phone, asha_number, address, village)
     else:
         print("No ASHA number found — skipping WhatsApp alert")
