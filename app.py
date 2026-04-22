@@ -607,24 +607,39 @@ def whatsapp_reply():
     elif user["step"] == "get_village":
         village = incoming_msg.strip()
         asha = get_asha_by_village(village)
-        if asha:
-            asha_id = asha["asha_id"]
-        else:
-            asha_id = "default_asha"
-        user["step"] = "registered"
+        asha_id = asha["asha_id"] if asha else "default_asha"
+        # Save village, move to get_address step
         save_patient(
             sender, user["name"], user["week"],
-            "registered", user["language"], asha_id, village
+            "get_address", user["language"], asha_id, village
+        )
+        msg.body(
+            f"Shukriya {user['name']}! 🌸\n\n"
+            f"Ab apna ghar ka address batao — gali, mohalla ya "
+            f"koi pehchaan ki jagah.\n\n"
+            f"Example: Near Govt School, Ward 4, Rampur\n\n"
+            f"(Yeh ASHA worker ko emergency mein dhundhne mein "
+            f"madad karega 🏥)"
+        )
+
+    elif user["step"] == "get_address":
+        address = incoming_msg.strip()
+        user   = get_patient(sender)  # Reload to get saved village + asha_id
+        save_patient(
+            sender, user["name"], user["week"],
+            "registered", user["language"],
+            user.get("asha_id", "default_asha"),
+            user.get("village", ""),
+            address
         )
         _, tip_msg, _ = analyze("tip", user["week"])
         msg.body(
             f"✅ Aap registered hain, {user['name']}!\n\n"
-            f"Village: {village}\n"
-            f"Aap week {user['week']} mein hain. "
-            f"Main aapke saath hoon 24/7. 💚\n\n"
+            f"Village: {user.get('village', '')}\n"
+            f"Address saved: {address} 📍\n\n"
+            f"Ab main aapke saath hoon 24/7. 💚\n\n"
             f"{tip_msg}\n\n"
-            f"Koi bhi symptom feel ho — bas mujhe message karo. "
-            f"Main hamesha yahan hoon! 🌸"
+            f"Koi bhi symptom feel ho — bas mujhe message karo. 🌸"
         )
 
     # ── Symptom Analysis ──────────────────────────────────────────
@@ -712,7 +727,9 @@ def whatsapp_reply():
             save_alert(
                 user["name"], user["week"],
                 incoming_msg, sender,
-                user.get("asha_id", "default_asha")
+                user.get("asha_id", "default_asha"),
+                address=user.get("address", ""),
+                village=user.get("village", "")
             )
 
         elif level == "AMBER":
