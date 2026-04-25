@@ -1253,16 +1253,18 @@ def supervisor_dashboard(supervisor_id):
     </div>
     <div class="panel" style="padding-top:16px">
         {"<div>" + alerts_html + "</div>" if tab == "alerts" else ""}
-        {f"""
+        {
+        f"""
         <div style="overflow-x:auto">
         <table>
             <thead><tr>
                 <th>Name</th><th>Village</th><th>Patients</th>
                 <th>Pending</th><th>Resolved</th><th>Avg Response</th><th></th>
             </tr></thead>
-            <tbody>""" + perf_rows + """</tbody>
+            <tbody>{perf_rows}</tbody>
         </table></div>
-        """ if tab in ("ashas","performance") else ""}
+        """ if tab in ("ashas","performance") else ""
+        }
     </div>
     <div class="footer">MaaSakhi · <a href="/login">← Logout</a></div>
     </body></html>
