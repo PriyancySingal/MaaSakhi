@@ -41,7 +41,6 @@ def init_db():
                 created_at  TIMESTAMP DEFAULT NOW()
             )
         """))
-        # Add new columns to existing admins table safely
         conn.execute(text("ALTER TABLE admins ADD COLUMN IF NOT EXISTS district TEXT DEFAULT 'All Districts'"))
         conn.execute(text("ALTER TABLE admins ADD COLUMN IF NOT EXISTS phone TEXT"))
 
@@ -86,7 +85,6 @@ def init_db():
                 created_at      TIMESTAMP DEFAULT NOW()
             )
         """))
-        # Add new columns to existing asha_workers safely
         conn.execute(text("ALTER TABLE asha_workers ADD COLUMN IF NOT EXISTS block_name TEXT"))
         conn.execute(text("ALTER TABLE asha_workers ADD COLUMN IF NOT EXISTS supervisor_id TEXT"))
 
@@ -111,7 +109,6 @@ def init_db():
                 updated_at      TIMESTAMP DEFAULT NOW()
             )
         """))
-        # Add new columns to existing patients table safely
         conn.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS address TEXT"))
         conn.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS supervisor_id TEXT"))
         conn.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS bmo_id TEXT"))
@@ -153,7 +150,6 @@ def init_db():
                 created_at          TIMESTAMP DEFAULT NOW()
             )
         """))
-        # Add new columns to existing asha_alerts safely
         conn.execute(text("ALTER TABLE asha_alerts ADD COLUMN IF NOT EXISTS address TEXT"))
         conn.execute(text("ALTER TABLE asha_alerts ADD COLUMN IF NOT EXISTS village TEXT"))
         conn.execute(text("ALTER TABLE asha_alerts ADD COLUMN IF NOT EXISTS maps_link TEXT"))
@@ -164,7 +160,6 @@ def init_db():
         conn.execute(text("ALTER TABLE asha_alerts ADD COLUMN IF NOT EXISTS resolved_notes TEXT"))
 
         # ── ASHA Visit Records ────────────────────────────────────
-        # Logs what actually happened after ASHA attended an alert
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS asha_visits (
                 id              SERIAL PRIMARY KEY,
@@ -181,7 +176,6 @@ def init_db():
         """))
 
         # ── Escalation Log ────────────────────────────────────────
-        # Tracks every escalation up the hierarchy
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS escalation_log (
                 id              SERIAL PRIMARY KEY,
@@ -195,7 +189,6 @@ def init_db():
         """))
 
         # ── ANC Records ───────────────────────────────────────────
-        # Tracks which ANC visits each patient has completed
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS anc_records (
                 id              SERIAL PRIMARY KEY,
@@ -209,7 +202,6 @@ def init_db():
         """))
 
         # ── Scheme Deliveries ─────────────────────────────────────
-        # Tracks govt scheme benefits delivered to patients
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS scheme_deliveries (
                 id              SERIAL PRIMARY KEY,
@@ -219,6 +211,63 @@ def init_db():
                 amount          TEXT,
                 delivered_by    TEXT,
                 delivery_date   TEXT,
+                created_at      TIMESTAMP DEFAULT NOW()
+            )
+        """))
+
+        # ── Postpartum Records (Month 4) ──────────────────────────
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS deliveries (
+                id              SERIAL PRIMARY KEY,
+                phone           TEXT UNIQUE,
+                delivery_date   TEXT NOT NULL,
+                birth_weight    TEXT,
+                delivery_mode   TEXT,
+                facility        TEXT,
+                asha_id         TEXT,
+                created_at      TIMESTAMP DEFAULT NOW()
+            )
+        """))
+
+        # ── Child Health Records (Month 4) ────────────────────────
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS children (
+                id              SERIAL PRIMARY KEY,
+                mother_phone    TEXT,
+                child_name      TEXT,
+                dob             TEXT,
+                gender          TEXT,
+                birth_weight    TEXT,
+                asha_id         TEXT,
+                created_at      TIMESTAMP DEFAULT NOW()
+            )
+        """))
+
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS child_growth_logs (
+                id              SERIAL PRIMARY KEY,
+                child_id        INTEGER,
+                mother_phone    TEXT,
+                weight_kg       FLOAT,
+                height_cm       FLOAT,
+                age_months      INTEGER,
+                log_date        TEXT,
+                z_score         FLOAT,
+                status          TEXT,
+                created_at      TIMESTAMP DEFAULT NOW()
+            )
+        """))
+
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS immunization_records (
+                id              SERIAL PRIMARY KEY,
+                child_id        INTEGER,
+                mother_phone    TEXT,
+                vaccine_name    TEXT,
+                dose_number     INTEGER,
+                given_date      TEXT,
+                due_date        TEXT,
+                given_by        TEXT,
                 created_at      TIMESTAMP DEFAULT NOW()
             )
         """))
@@ -279,6 +328,14 @@ def get_district_stats():
                 text("SELECT COUNT(*) FROM asha_workers WHERE is_active = TRUE")
             ).fetchone()[0]
 
+            total_supervisors = conn.execute(
+                text("SELECT COUNT(*) FROM asha_supervisors WHERE is_active = TRUE")
+            ).fetchone()[0]
+
+            total_bmos = conn.execute(
+                text("SELECT COUNT(*) FROM block_officers WHERE is_active = TRUE")
+            ).fetchone()[0]
+
             total_alerts_today = conn.execute(
                 text("SELECT COUNT(*) FROM asha_alerts WHERE DATE(created_at) = CURRENT_DATE")
             ).fetchone()[0]
@@ -287,17 +344,103 @@ def get_district_stats():
                 text("SELECT COUNT(*) FROM asha_alerts WHERE escalation_level > 0 AND status != 'Resolved'")
             ).fetchone()[0]
 
+            resolved_today = conn.execute(
+                text("""
+                    SELECT COUNT(*) FROM asha_alerts
+                    WHERE status = 'Resolved'
+                    AND DATE(created_at) = CURRENT_DATE
+                """)
+            ).fetchone()[0]
+
             return {
                 "total_patients":     total_patients,
                 "high_risk":          high_risk,
                 "total_ashas":        total_ashas,
+                "total_supervisors":  total_supervisors,
+                "total_bmos":         total_bmos,
                 "alerts_today":       total_alerts_today,
                 "escalated_alerts":   escalated,
+                "resolved_today":     resolved_today,
                 "safe_patients":      max(total_patients - high_risk, 0)
             }
     except Exception as e:
         print(f"Get district stats error: {e}")
         return {}
+
+
+def get_district_trends(days=30):
+    """
+    Day-by-day alert counts for the last N days.
+    Used for analytics charts on admin dashboard.
+    """
+    if not engine:
+        return []
+    try:
+        with engine.connect() as conn:
+            results = conn.execute(
+                text("""
+                    SELECT
+                        DATE(created_at)         AS day,
+                        COUNT(*)                 AS total,
+                        SUM(CASE WHEN level = 'RED'   THEN 1 ELSE 0 END) AS red_count,
+                        SUM(CASE WHEN level = 'AMBER' THEN 1 ELSE 0 END) AS amber_count,
+                        SUM(CASE WHEN level = 'GREEN' THEN 1 ELSE 0 END) AS green_count
+                    FROM symptom_logs
+                    WHERE created_at >= NOW() - INTERVAL :interval
+                    GROUP BY DATE(created_at)
+                    ORDER BY day ASC
+                """),
+                {"interval": f"{days} days"}
+            ).fetchall()
+            return [{
+                "day":         str(r.day),
+                "total":       r.total,
+                "red_count":   r.red_count,
+                "amber_count": r.amber_count,
+                "green_count": r.green_count
+            } for r in results]
+    except Exception as e:
+        print(f"Get district trends error: {e}")
+        return []
+
+
+def get_village_risk_scores():
+    """
+    Aggregated risk per village — used for heatmap.
+    Returns list of {village, lat, lng, high_risk_count, total_patients, risk_score}
+    """
+    if not engine:
+        return []
+    try:
+        with engine.connect() as conn:
+            results = conn.execute(
+                text("""
+                    SELECT
+                        p.village,
+                        COUNT(DISTINCT p.phone)                                AS total_patients,
+                        COUNT(DISTINCT CASE WHEN aa.status != 'Resolved'
+                              THEN aa.id END)                                  AS active_alerts,
+                        AVG(CASE WHEN sl.level = 'RED'   THEN 40
+                                 WHEN sl.level = 'AMBER' THEN 15
+                                 WHEN sl.level = 'GREEN' THEN 2
+                                 ELSE 0 END)                                   AS avg_risk
+                    FROM patients p
+                    LEFT JOIN asha_alerts aa  ON aa.phone = p.phone
+                    LEFT JOIN symptom_logs sl ON sl.phone = p.phone
+                    WHERE p.step = 'registered'
+                    GROUP BY p.village
+                    ORDER BY avg_risk DESC NULLS LAST
+                """)
+            ).fetchall()
+            return [{
+                "village":        r.village,
+                "total_patients": r.total_patients,
+                "active_alerts":  r.active_alerts  or 0,
+                "avg_risk":       round(float(r.avg_risk), 1) if r.avg_risk else 0
+            } for r in results]
+    except Exception as e:
+        print(f"Get village risk scores error: {e}")
+        return []
 
 
 # ═════════════════════════════════════════════════════════════════
@@ -379,6 +522,38 @@ def verify_bmo(phone):
         return None
 
 
+def toggle_bmo_status(bmo_id):
+    if not engine:
+        return False
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                UPDATE block_officers
+                SET is_active = NOT is_active
+                WHERE bmo_id = :bmo_id
+            """), {"bmo_id": bmo_id})
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Toggle BMO status error: {e}")
+        return False
+
+
+def delete_block_officer(bmo_id):
+    if not engine:
+        return False
+    try:
+        with engine.connect() as conn:
+            conn.execute(text(
+                "DELETE FROM block_officers WHERE bmo_id = :bmo_id"
+            ), {"bmo_id": bmo_id})
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Delete BMO error: {e}")
+        return False
+
+
 def get_bmo_stats(bmo_id):
     """Stats for BMO dashboard — their block only."""
     if not engine:
@@ -419,11 +594,22 @@ def get_bmo_stats(bmo_id):
                 {"id": bmo_id}
             ).fetchone()[0]
 
+            pending_in_block = conn.execute(
+                text("""
+                    SELECT COUNT(*) FROM asha_alerts aa
+                    JOIN asha_workers aw ON aa.asha_id = aw.asha_id
+                    JOIN asha_supervisors s ON aw.supervisor_id = s.supervisor_id
+                    WHERE s.bmo_id = :id AND aa.status = 'Pending'
+                """),
+                {"id": bmo_id}
+            ).fetchone()[0]
+
             return {
-                "total_supervisors": total_supervisors,
-                "total_ashas":       total_ashas,
-                "total_patients":    total_patients,
-                "escalated_alerts":  escalated
+                "total_supervisors":  total_supervisors,
+                "total_ashas":        total_ashas,
+                "total_patients":     total_patients,
+                "escalated_alerts":   escalated,
+                "pending_in_block":   pending_in_block
             }
     except Exception as e:
         print(f"Get BMO stats error: {e}")
@@ -453,8 +639,8 @@ def get_bmo_alerts(bmo_id):
                 "week":        r.week,
                 "symptom":     r.symptom,
                 "phone":       r.phone,
-                "address":     r.address if r.address else "",
-                "village":     r.village if r.village else "",
+                "address":     r.address   if r.address   else "",
+                "village":     r.village   if r.village   else "",
                 "maps_link":   r.maps_link if r.maps_link else "",
                 "status":      r.status,
                 "asha_name":   r.asha_name,
@@ -463,6 +649,40 @@ def get_bmo_alerts(bmo_id):
     except Exception as e:
         print(f"Get BMO alerts error: {e}")
         return []
+
+
+def get_patients_by_bmo(bmo_id):
+    """All patients in a BMO's block."""
+    if not engine:
+        return {}
+    try:
+        with engine.connect() as conn:
+            results = conn.execute(
+                text("""
+                    SELECT p.*, aw.name as asha_name
+                    FROM patients p
+                    JOIN asha_workers aw ON p.asha_id = aw.asha_id
+                    JOIN asha_supervisors s ON aw.supervisor_id = s.supervisor_id
+                    WHERE s.bmo_id = :bmo_id AND p.step = 'registered'
+                    ORDER BY p.village, p.name
+                """),
+                {"bmo_id": bmo_id}
+            ).fetchall()
+            patients = {}
+            for r in results:
+                patients[r.phone] = {
+                    "phone":     r.phone,
+                    "name":      r.name,
+                    "week":      r.week,
+                    "village":   r.village   if r.village   else "",
+                    "address":   r.address   if r.address   else "",
+                    "asha_name": r.asha_name,
+                    "status":    r.status    if r.status    else "active"
+                }
+            return patients
+    except Exception as e:
+        print(f"Get patients by BMO error: {e}")
+        return {}
 
 
 # ═════════════════════════════════════════════════════════════════
@@ -551,6 +771,38 @@ def verify_supervisor(phone):
         return None
 
 
+def toggle_supervisor_status(supervisor_id):
+    if not engine:
+        return False
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                UPDATE asha_supervisors
+                SET is_active = NOT is_active
+                WHERE supervisor_id = :supervisor_id
+            """), {"supervisor_id": supervisor_id})
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Toggle supervisor status error: {e}")
+        return False
+
+
+def delete_supervisor(supervisor_id):
+    if not engine:
+        return False
+    try:
+        with engine.connect() as conn:
+            conn.execute(text(
+                "DELETE FROM asha_supervisors WHERE supervisor_id = :supervisor_id"
+            ), {"supervisor_id": supervisor_id})
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Delete supervisor error: {e}")
+        return False
+
+
 def get_supervisor_stats(supervisor_id):
     """Stats for supervisor dashboard — her ASHAs only."""
     if not engine:
@@ -593,11 +845,23 @@ def get_supervisor_stats(supervisor_id):
                 {"id": supervisor_id}
             ).fetchone()[0]
 
+            resolved_this_week = conn.execute(
+                text("""
+                    SELECT COUNT(*) FROM asha_alerts aa
+                    JOIN asha_workers aw ON aa.asha_id = aw.asha_id
+                    WHERE aw.supervisor_id = :id
+                    AND aa.status = 'Resolved'
+                    AND aa.created_at >= NOW() - INTERVAL '7 days'
+                """),
+                {"id": supervisor_id}
+            ).fetchone()[0]
+
             return {
-                "total_ashas":       total_ashas,
-                "total_patients":    total_patients,
-                "pending_alerts":    pending_alerts,
-                "escalated_to_me":   escalated_to_me
+                "total_ashas":         total_ashas,
+                "total_patients":      total_patients,
+                "pending_alerts":      pending_alerts,
+                "escalated_to_me":     escalated_to_me,
+                "resolved_this_week":  resolved_this_week
             }
     except Exception as e:
         print(f"Get supervisor stats error: {e}")
@@ -605,7 +869,7 @@ def get_supervisor_stats(supervisor_id):
 
 
 def get_supervisor_ashas(supervisor_id):
-    """Get all ASHA workers under a supervisor."""
+    """Get all ASHA workers under a supervisor with performance metrics."""
     if not engine:
         return []
     try:
@@ -614,16 +878,21 @@ def get_supervisor_ashas(supervisor_id):
                 text("""
                     SELECT
                         aw.*,
-                        COUNT(p.phone) as patient_count,
-                        COUNT(CASE WHEN aa.status = 'Pending'
-                              THEN 1 END) as pending_alerts
+                        COUNT(DISTINCT p.phone)                                        AS patient_count,
+                        COUNT(DISTINCT CASE WHEN aa.status = 'Pending'
+                              THEN aa.id END)                                          AS pending_alerts,
+                        COUNT(DISTINCT CASE WHEN aa.status = 'Resolved'
+                              THEN aa.id END)                                          AS resolved_alerts,
+                        COUNT(DISTINCT CASE WHEN aa.escalation_level > 0
+                              THEN aa.id END)                                          AS escalated_alerts,
+                        AVG(CASE WHEN aa.status = 'Resolved' AND aa.escalated_at IS NOT NULL
+                            THEN EXTRACT(EPOCH FROM (aa.escalated_at - aa.created_at))/3600.0
+                            END)                                                       AS avg_response_hrs
                     FROM asha_workers aw
                     LEFT JOIN patients p
-                        ON p.asha_id = aw.asha_id
-                        AND p.step = 'registered'
+                        ON p.asha_id = aw.asha_id AND p.step = 'registered'
                     LEFT JOIN asha_alerts aa
                         ON aa.asha_id = aw.asha_id
-                        AND aa.status = 'Pending'
                     WHERE aw.supervisor_id = :id
                     GROUP BY aw.asha_id
                     ORDER BY pending_alerts DESC, patient_count DESC
@@ -631,13 +900,16 @@ def get_supervisor_ashas(supervisor_id):
                 {"id": supervisor_id}
             ).fetchall()
             return [{
-                "asha_id":       r.asha_id,
-                "name":          r.name,
-                "phone":         r.phone,
-                "village":       r.village,
-                "is_active":     r.is_active,
-                "patient_count": r.patient_count,
-                "pending_alerts": r.pending_alerts
+                "asha_id":          r.asha_id,
+                "name":             r.name,
+                "phone":            r.phone,
+                "village":          r.village,
+                "is_active":        r.is_active,
+                "patient_count":    r.patient_count,
+                "pending_alerts":   r.pending_alerts,
+                "resolved_alerts":  r.resolved_alerts,
+                "escalated_alerts": r.escalated_alerts,
+                "avg_response_hrs": round(float(r.avg_response_hrs), 1) if r.avg_response_hrs else None
             } for r in results]
     except Exception as e:
         print(f"Get supervisor ASHAs error: {e}")
@@ -672,8 +944,8 @@ def get_supervisor_alerts(supervisor_id):
                 "week":      r.week,
                 "symptom":   r.symptom,
                 "phone":     r.phone,
-                "address":   r.address  if r.address  else "",
-                "village":   r.village  if r.village  else "",
+                "address":   r.address   if r.address   else "",
+                "village":   r.village   if r.village   else "",
                 "maps_link": r.maps_link if r.maps_link else "",
                 "status":    r.status,
                 "asha_name": r.asha_name,
@@ -684,6 +956,40 @@ def get_supervisor_alerts(supervisor_id):
     except Exception as e:
         print(f"Get supervisor alerts error: {e}")
         return []
+
+
+def get_patients_by_supervisor(supervisor_id):
+    """All patients under a supervisor's ASHA workers."""
+    if not engine:
+        return {}
+    try:
+        with engine.connect() as conn:
+            results = conn.execute(
+                text("""
+                    SELECT p.*, aw.name as asha_name
+                    FROM patients p
+                    JOIN asha_workers aw ON p.asha_id = aw.asha_id
+                    WHERE aw.supervisor_id = :supervisor_id
+                    AND p.step = 'registered'
+                    ORDER BY p.village, p.name
+                """),
+                {"supervisor_id": supervisor_id}
+            ).fetchall()
+            patients = {}
+            for r in results:
+                patients[r.phone] = {
+                    "phone":     r.phone,
+                    "name":      r.name,
+                    "week":      r.week,
+                    "village":   r.village   if r.village   else "",
+                    "address":   r.address   if r.address   else "",
+                    "asha_name": r.asha_name,
+                    "status":    r.status    if r.status    else "active"
+                }
+            return patients
+    except Exception as e:
+        print(f"Get patients by supervisor error: {e}")
+        return {}
 
 
 # ═════════════════════════════════════════════════════════════════
@@ -877,6 +1183,102 @@ def get_asha_stats(asha_id):
         }
 
 
+def get_asha_performance(asha_id, days=30):
+    """
+    Performance metrics for a single ASHA worker over last N days.
+    Used by supervisor dashboard and performance.py.
+    """
+    if not engine:
+        return {}
+    try:
+        with engine.connect() as conn:
+            total_alerts = conn.execute(
+                text("""
+                    SELECT COUNT(*) FROM asha_alerts
+                    WHERE asha_id = :id
+                    AND created_at >= NOW() - INTERVAL :interval
+                """),
+                {"id": asha_id, "interval": f"{days} days"}
+            ).fetchone()[0]
+
+            resolved_alerts = conn.execute(
+                text("""
+                    SELECT COUNT(*) FROM asha_alerts
+                    WHERE asha_id = :id
+                    AND status = 'Resolved'
+                    AND created_at >= NOW() - INTERVAL :interval
+                """),
+                {"id": asha_id, "interval": f"{days} days"}
+            ).fetchone()[0]
+
+            escalated_alerts = conn.execute(
+                text("""
+                    SELECT COUNT(*) FROM asha_alerts
+                    WHERE asha_id = :id
+                    AND escalation_level > 0
+                    AND created_at >= NOW() - INTERVAL :interval
+                """),
+                {"id": asha_id, "interval": f"{days} days"}
+            ).fetchone()[0]
+
+            visit_count = conn.execute(
+                text("""
+                    SELECT COUNT(*) FROM asha_visits
+                    WHERE asha_id = :id
+                    AND created_at >= NOW() - INTERVAL :interval
+                """),
+                {"id": asha_id, "interval": f"{days} days"}
+            ).fetchone()[0]
+
+            # Average response time in hours (time between alert creation and first visit)
+            avg_response = conn.execute(
+                text("""
+                    SELECT AVG(
+                        EXTRACT(EPOCH FROM (av.visit_time - aa.created_at)) / 3600.0
+                    )
+                    FROM asha_visits av
+                    JOIN asha_alerts aa ON av.alert_id = aa.id
+                    WHERE av.asha_id = :id
+                    AND av.created_at >= NOW() - INTERVAL :interval
+                """),
+                {"id": asha_id, "interval": f"{days} days"}
+            ).fetchone()[0]
+
+            resolution_rate = (
+                round((resolved_alerts / total_alerts) * 100, 1)
+                if total_alerts > 0 else 0
+            )
+            escalation_rate = (
+                round((escalated_alerts / total_alerts) * 100, 1)
+                if total_alerts > 0 else 0
+            )
+
+            # Performance rating: GREEN / AMBER / RED
+            avg_hrs = round(float(avg_response), 1) if avg_response else None
+            if avg_hrs is None:
+                rating = "unknown"
+            elif avg_hrs <= 1 and escalation_rate <= 10:
+                rating = "GREEN"
+            elif avg_hrs <= 3 and escalation_rate <= 30:
+                rating = "AMBER"
+            else:
+                rating = "RED"
+
+            return {
+                "total_alerts":      total_alerts,
+                "resolved_alerts":   resolved_alerts,
+                "escalated_alerts":  escalated_alerts,
+                "visit_count":       visit_count,
+                "resolution_rate":   resolution_rate,
+                "escalation_rate":   escalation_rate,
+                "avg_response_hrs":  avg_hrs,
+                "performance_rating": rating
+            }
+    except Exception as e:
+        print(f"Get ASHA performance error: {e}")
+        return {}
+
+
 def toggle_asha_status(asha_id):
     if not engine:
         return False
@@ -1052,15 +1454,36 @@ def get_all_patients_admin():
                     "language":   r.language,
                     "asha_id":    r.asha_id,
                     "asha_name":  r.asha_name,
-                    "village":    r.village    if r.village    else "",
-                    "district":   r.district   if r.district   else "",
-                    "address":    r.address    if r.address    else "",
-                    "status":     r.status     if r.status     else "active"
+                    "village":    r.village  if r.village  else "",
+                    "district":   r.district if r.district else "",
+                    "address":    r.address  if r.address  else "",
+                    "status":     r.status   if r.status   else "active"
                 }
             return patients
     except Exception as e:
         print(f"Get all patients admin error: {e}")
         return {}
+
+
+def update_patient_status(phone, status):
+    """
+    Update patient status — 'active', 'postpartum', 'closed'.
+    Called when a delivery is recorded or patient is discharged.
+    """
+    if not engine:
+        return False
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                UPDATE patients
+                SET status = :status, updated_at = NOW()
+                WHERE phone = :phone
+            """), {"status": status, "phone": phone})
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Update patient status error: {e}")
+        return False
 
 
 # ═════════════════════════════════════════════════════════════════
@@ -1248,9 +1671,9 @@ def get_all_alerts_admin():
                 "week":      r.week,
                 "symptom":   r.symptom,
                 "phone":     r.phone,
-                "address":   r.address     if r.address     else "",
-                "village":   r.village     if r.village     else "",
-                "maps_link": r.maps_link   if r.maps_link   else "",
+                "address":   r.address   if r.address   else "",
+                "village":   r.village   if r.village   else "",
+                "maps_link": r.maps_link if r.maps_link else "",
                 "time":      r.created_at.strftime("%d %b %Y, %I:%M %p"),
                 "status":    r.status,
                 "asha_id":   r.asha_id,
@@ -1411,26 +1834,31 @@ def log_escalation(alert_id, from_role, to_role, to_phone, reason):
 
 def get_unresponded_alerts(hours=2):
     """
-    Returns all Pending alerts older than X hours.
+    Returns all Pending alerts older than X hours, not yet escalated.
     Used by escalation engine to trigger auto-escalation.
+
+    NOTE: SQLAlchemy text() cannot interpolate INTERVAL values via :param
+    so we build the interval string safely using only the integer value.
     """
     if not engine:
         return []
+    # Safely extract integer — prevents injection
+    safe_hours = int(hours)
     try:
         with engine.connect() as conn:
             results = conn.execute(
-                text("""
+                text(f"""
                     SELECT aa.*,
                            aw.supervisor_id,
-                           aw.name as asha_name,
+                           aw.name  as asha_name,
                            aw.phone as asha_phone
                     FROM asha_alerts aa
                     JOIN asha_workers aw ON aa.asha_id = aw.asha_id
                     WHERE aa.status = 'Pending'
-                    AND aa.created_at < NOW() - INTERVAL ':hours hours'
+                    AND aa.created_at < NOW() - INTERVAL '{safe_hours} hours'
                     AND aa.escalation_level = 0
                     ORDER BY aa.created_at ASC
-                """.replace(":hours hours", f"{hours} hours"))
+                """)
             ).fetchall()
             return [{
                 "id":            r.id,
@@ -1527,29 +1955,25 @@ def unified_login(phone):
     Returns user dict with 'role' field set correctly.
     Priority: ASHA Worker → Supervisor → BMO → Admin
     """
-    # Normalise phone — strip whatsapp: prefix if present
     clean_phone = phone.replace("whatsapp:", "").strip()
     wa_phone    = "whatsapp:" + clean_phone
 
-    # Check ASHA worker (most common login)
     for p in [clean_phone, wa_phone]:
         user = get_asha_by_phone(p)
         if user:
             return user  # role = "asha"
 
-    # Check Supervisor
     for p in [clean_phone, wa_phone]:
         user = verify_supervisor(p)
         if user:
             return user  # role = "supervisor"
 
-    # Check BMO
     for p in [clean_phone, wa_phone]:
         user = verify_bmo(p)
         if user:
             return user  # role = "bmo"
 
-    return None  # Not found in any role table
+    return None
 
 
 # ═════════════════════════════════════════════════════════════════
@@ -1656,4 +2080,281 @@ def get_scheme_deliveries(phone):
             } for r in results]
     except Exception as e:
         print(f"Get scheme deliveries error: {e}")
+        return []
+
+
+# ═════════════════════════════════════════════════════════════════
+# POSTPARTUM + CHILD HEALTH FUNCTIONS (Month 4)
+# ═════════════════════════════════════════════════════════════════
+
+def save_delivery_record(phone, delivery_date, birth_weight="",
+                         delivery_mode="", facility="", asha_id=""):
+    """
+    Called when patient reports baby born.
+    Also updates patient status to 'postpartum'.
+    """
+    if not engine:
+        return False
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                INSERT INTO deliveries
+                    (phone, delivery_date, birth_weight,
+                     delivery_mode, facility, asha_id)
+                VALUES
+                    (:phone, :delivery_date, :birth_weight,
+                     :delivery_mode, :facility, :asha_id)
+                ON CONFLICT (phone) DO UPDATE SET
+                    delivery_date = :delivery_date,
+                    birth_weight  = :birth_weight,
+                    delivery_mode = :delivery_mode,
+                    facility      = :facility
+            """), {
+                "phone":         phone,
+                "delivery_date": delivery_date,
+                "birth_weight":  birth_weight,
+                "delivery_mode": delivery_mode,
+                "facility":      facility,
+                "asha_id":       asha_id
+            })
+            conn.commit()
+        # Flip patient to postpartum mode
+        update_patient_status(phone, "postpartum")
+        return True
+    except Exception as e:
+        print(f"Save delivery record error: {e}")
+        return False
+
+
+def get_delivery_record(phone):
+    if not engine:
+        return None
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT * FROM deliveries WHERE phone = :phone"),
+                {"phone": phone}
+            ).fetchone()
+            if result:
+                return {
+                    "phone":         result.phone,
+                    "delivery_date": result.delivery_date,
+                    "birth_weight":  result.birth_weight,
+                    "delivery_mode": result.delivery_mode,
+                    "facility":      result.facility,
+                    "asha_id":       result.asha_id
+                }
+            return None
+    except Exception as e:
+        print(f"Get delivery record error: {e}")
+        return None
+
+
+def save_child(mother_phone, child_name, dob, gender,
+               birth_weight="", asha_id=""):
+    if not engine:
+        return None
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                INSERT INTO children
+                    (mother_phone, child_name, dob, gender,
+                     birth_weight, asha_id)
+                VALUES
+                    (:mother_phone, :child_name, :dob, :gender,
+                     :birth_weight, :asha_id)
+                RETURNING id
+            """), {
+                "mother_phone": mother_phone,
+                "child_name":   child_name,
+                "dob":          dob,
+                "gender":       gender,
+                "birth_weight": birth_weight,
+                "asha_id":      asha_id
+            })
+            child_id = result.fetchone()[0]
+            conn.commit()
+            return child_id
+    except Exception as e:
+        print(f"Save child error: {e}")
+        return None
+
+
+def get_children(mother_phone):
+    if not engine:
+        return []
+    try:
+        with engine.connect() as conn:
+            results = conn.execute(
+                text("""
+                    SELECT * FROM children
+                    WHERE mother_phone = :phone
+                    ORDER BY dob ASC
+                """),
+                {"phone": mother_phone}
+            ).fetchall()
+            return [{
+                "id":           r.id,
+                "child_name":   r.child_name,
+                "dob":          r.dob,
+                "gender":       r.gender,
+                "birth_weight": r.birth_weight
+            } for r in results]
+    except Exception as e:
+        print(f"Get children error: {e}")
+        return []
+
+
+def save_growth_log(child_id, mother_phone, weight_kg, height_cm,
+                    age_months, z_score=None, status=""):
+    if not engine:
+        return False
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                INSERT INTO child_growth_logs
+                    (child_id, mother_phone, weight_kg, height_cm,
+                     age_months, log_date, z_score, status)
+                VALUES
+                    (:child_id, :mother_phone, :weight_kg, :height_cm,
+                     :age_months, :log_date, :z_score, :status)
+            """), {
+                "child_id":     child_id,
+                "mother_phone": mother_phone,
+                "weight_kg":    weight_kg,
+                "height_cm":    height_cm,
+                "age_months":   age_months,
+                "log_date":     datetime.now().strftime("%d %b %Y"),
+                "z_score":      z_score,
+                "status":       status
+            })
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Save growth log error: {e}")
+        return False
+
+
+def get_growth_logs(child_id):
+    if not engine:
+        return []
+    try:
+        with engine.connect() as conn:
+            results = conn.execute(
+                text("""
+                    SELECT * FROM child_growth_logs
+                    WHERE child_id = :child_id
+                    ORDER BY age_months ASC
+                """),
+                {"child_id": child_id}
+            ).fetchall()
+            return [{
+                "age_months": r.age_months,
+                "weight_kg":  r.weight_kg,
+                "height_cm":  r.height_cm,
+                "z_score":    r.z_score,
+                "status":     r.status,
+                "log_date":   r.log_date
+            } for r in results]
+    except Exception as e:
+        print(f"Get growth logs error: {e}")
+        return []
+
+
+def save_immunization_record(child_id, mother_phone, vaccine_name,
+                              dose_number, given_date, due_date="",
+                              given_by=""):
+    if not engine:
+        return False
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                INSERT INTO immunization_records
+                    (child_id, mother_phone, vaccine_name, dose_number,
+                     given_date, due_date, given_by)
+                VALUES
+                    (:child_id, :mother_phone, :vaccine_name, :dose_number,
+                     :given_date, :due_date, :given_by)
+            """), {
+                "child_id":     child_id,
+                "mother_phone": mother_phone,
+                "vaccine_name": vaccine_name,
+                "dose_number":  dose_number,
+                "given_date":   given_date,
+                "due_date":     due_date,
+                "given_by":     given_by
+            })
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Save immunization record error: {e}")
+        return False
+
+
+def get_immunization_records(child_id):
+    if not engine:
+        return []
+    try:
+        with engine.connect() as conn:
+            results = conn.execute(
+                text("""
+                    SELECT * FROM immunization_records
+                    WHERE child_id = :child_id
+                    ORDER BY given_date ASC
+                """),
+                {"child_id": child_id}
+            ).fetchall()
+            return [{
+                "vaccine_name": r.vaccine_name,
+                "dose_number":  r.dose_number,
+                "given_date":   r.given_date,
+                "due_date":     r.due_date,
+                "given_by":     r.given_by
+            } for r in results]
+    except Exception as e:
+        print(f"Get immunization records error: {e}")
+        return []
+
+
+def get_postpartum_patients_due(asha_id):
+    """
+    Returns postpartum patients who need a PNC check-in.
+    PNC schedule: day 1, 3, 7, 14, 42 after delivery.
+    """
+    if not engine:
+        return []
+    pnc_days = [1, 3, 7, 14, 42]
+    try:
+        with engine.connect() as conn:
+            results = conn.execute(
+                text("""
+                    SELECT p.name, p.phone, d.delivery_date, d.birth_weight
+                    FROM patients p
+                    JOIN deliveries d ON p.phone = d.phone
+                    WHERE p.asha_id = :asha_id
+                    AND p.status = 'postpartum'
+                    ORDER BY d.delivery_date DESC
+                """),
+                {"asha_id": asha_id}
+            ).fetchall()
+
+            due_today = []
+            today = datetime.now().date()
+            for r in results:
+                try:
+                    ddate = datetime.strptime(r.delivery_date, "%d %b %Y").date()
+                    days_since = (today - ddate).days
+                    if days_since in pnc_days:
+                        due_today.append({
+                            "name":          r.name,
+                            "phone":         r.phone,
+                            "delivery_date": r.delivery_date,
+                            "birth_weight":  r.birth_weight,
+                            "days_since":    days_since
+                        })
+                except (ValueError, TypeError):
+                    continue
+            return due_today
+    except Exception as e:
+        print(f"Get postpartum patients due error: {e}")
         return []
