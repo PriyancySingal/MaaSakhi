@@ -1253,7 +1253,7 @@ def supervisor_dashboard(supervisor_id):
     </div>
     <div class="panel" style="padding-top:16px">
         {"<div>" + alerts_html + "</div>" if tab == "alerts" else ""}
-        """
+        {"""
         <div style="overflow-x:auto">
         <table>
             <thead><tr>
