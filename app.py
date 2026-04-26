@@ -321,19 +321,6 @@ def _maps_link(address, village):
     return f"https://www.google.com/maps/dir/?api=1&destination={encoded}"
 
 
-
-def is_visual_symptom(text):
-    text = text.lower()
-    keywords = [
-        "rash", "allergy", "itch", "itching", "skin",
-        "burn", "cut", "wound", "injury", "swelling",
-        "redness", "infection", "pimple", "blister",
-        "daane", "khujli", "jalan", "sujan", "ghav"
-    ]
-    return any(k in text for k in keywords)
-
-
-
 # ─────────────────────────────────────────────────────────────────
 # WHATSAPP BOT
 # ─────────────────────────────────────────────────────────────────
@@ -368,7 +355,7 @@ def whatsapp_reply():
     # ── Load / create patient ─────────────────────────────────────
     user = get_patient(sender) or {
         "phone": sender, "name": "", "week": 0,
-        "step": "welcome", "language": "",
+        "step": "welcome", "language": "Hindi",
         "asha_id": "default_asha", "supervisor_id": "",
         "bmo_id": "", "village": "", "address": "", "status": "active"
     }
@@ -467,116 +454,12 @@ def whatsapp_reply():
                 "Koi symptom feel ho toh batao, ya 'progress' type karo! 🌸"
             )
             return str(response)
-        
-        # 👉 NEW: Ask language
-        save_patient(sender, "", 0, "select_language")
-        msg.body(
-            "🌸 Namaste! Welcome to MaaSakhi\n\n"
-            "Please choose your language:\n\n"
-            "1️⃣ English\n"
-            "2️⃣ Hindi\n"
-            "3️⃣ Hinglish\n\n"
-            "Reply with 1 / 2 / 3")
-        return str(response)
 
-        
-        
-    elif user["step"] == "select_language":
-        choice = incoming_msg.strip()
-        if choice == "1":
-            lang = "English"
-            reply = "Great! Let's continue in English. 😊"
-        elif choice == "2":
-            lang = "Hindi"
-            reply = "Bahut badhiya! Hum Hindi mein baat karenge. 😊"
-        elif choice == "3":
-            lang = "Hinglish"
-            reply = "Cool! Hinglish mein continue karte hain 😄"
-        else:
-            msg.body("Please reply with 1, 2 or 3.")
-            return str(response)
-        save_patient(sender, "", 0, "get_name", lang)
+        save_patient(sender, "", 0, "get_name")
         msg.body(
             "🌸 Namaste! Welcome to MaaSakhi — aapki maternal health companion!\n\n"
             "Pehle mujhe apna naam batao:\nPlease tell me your name:"
         )
-        return str(response)
-
-    elif user["step"] == "ask_image_permission":
-        choice = incoming_msg.strip()
-        if choice == "1":
-            save_patient(
-                sender, user["name"], user["week"],
-                "awaiting_image",
-                user["language"],
-                user.get("asha_id", "default_asha"),
-                user.get("village", ""),
-                user.get("address", ""),
-                user.get("supervisor_id", ""),
-                user.get("bmo_id", ""))
-            msg.body(
-                "📸 Theek hai!\n\n"
-                "Kripya ab apni problem ka clear photo bhejein.\n"
-                "Jaise: rash, swelling, wound etc.")
-            return str(response)
-        elif choice == "2":# Skip image → continue normal flow
-            save_patient(
-                sender, user["name"], user["week"],
-                "registered",
-                user["language"],
-                user.get("asha_id", "default_asha"),
-                user.get("village", ""),
-                user.get("address", ""),
-                user.get("supervisor_id", ""),
-                user.get("bmo_id", "")
-                )
-            symptom = session.get("last_symptom", incoming_msg)
-            level, reply, alert_needed = analyze(symptom, user["week"])
-            save_symptom_log(sender, user["week"], symptom, level)
-            msg.body(reply)
-            return str(response)
-        else:
-            msg.body("Please 1 ya 2 mein se choose karein.")
-            return str(response)
-        
-    elif user["step"] == "awaiting_image":
-        num_media = int(request.values.get("NumMedia", 0))
-        media_url = request.values.get("MediaUrl0", "")
-        media_type = request.values.get("MediaContentType0", "")
-        if num_media > 0 and "image" in (media_type or ""):
-            # Send image to ASHA worker
-            asha_info = get_asha_by_phone(user.get("asha_id", ""))
-            if asha_info:
-                send_whatsapp(
-                    asha_info["phone"],
-                    f"📸 *Patient Image Received*\n\n"
-                    f"Name: {user['name']}\n"
-                    f"Phone: {sender}\n\n"
-                    f"🔗 Image: {media_url}"
-                )
-            # Continue analysis
-            symptom = session.get("last_symptom", "")
-            level, reply, alert_needed = analyze(symptom, user["week"])
-            save_symptom_log(sender, user["week"], symptom, level)
-            # Reset step
-            save_patient(
-                sender, user["name"], user["week"],
-                "registered",
-                user["language"],
-                user.get("asha_id", "default_asha"),
-                user.get("village", ""),
-                user.get("address", ""),
-                user.get("supervisor_id", ""),
-                user.get("bmo_id", ""))
-            msg.body(
-                f"✅ Photo mil gaya.\n\n{reply}\n\n"
-                "ASHA worker ko bhi bhej diya gaya hai. 💚")
-            return str(response)
-        else:
-            msg.body("Kripya ek clear image bhejein 📸")
-            return str(response)
-    
-
 
     elif user["step"] == "get_name":
         save_patient(sender, incoming_msg, 0, "get_week")
@@ -696,26 +579,18 @@ def whatsapp_reply():
             return str(response)
 
         # ── Update language ───────────────────────────────────────
-        # ✅ Smart language handling
         detected_lang = detect_language(incoming_msg)
-        # Case 1: If user has NOT selected language yet → use detection
-        if not user.get("language"):
+        if detected_lang != user["language"]:
             save_patient(
                 sender, user["name"], user["week"], "registered",
                 detected_lang,
-                user.get("asha_id", "default_asha"),
-                user.get("village", ""),
-                user.get("address", ""),
+                user.get("asha_id",       "default_asha"),
+                user.get("village",       ""),
+                user.get("address",       ""),
                 user.get("supervisor_id", ""),
-                user.get("bmo_id", "")
+                user.get("bmo_id",        "")
             )
             user["language"] = detected_lang
-        # Case 2: If user selected language → DO NOT override
-        # (Optional advanced: allow switching if user clearly changes language)
-        elif detected_lang != user["language"]:
-            # Only update if user is consistently using another language
-            # # (you can remove this block if you want strict locking)
-            pass
 
         # ── Progress tracker ──────────────────────────────────────
         if is_tracker_request(incoming_msg):
@@ -724,32 +599,6 @@ def whatsapp_reply():
             )
             msg.body(reply)
             return str(response)
-        
-
-
-        #Visual Input --------------------
-        # ✅ Check if symptom is visual
-        if is_visual_symptom(incoming_msg):
-            save_patient(
-                sender, user["name"], user["week"],
-                "ask_image_permission",
-                user["language"],
-                user.get("asha_id", "default_asha"),
-                user.get("village", ""),
-                user.get("address", ""),
-                user.get("supervisor_id", ""),
-                user.get("bmo_id", "")
-                )
-            # store last symptom temporarily 
-            session["last_symptom"] = incoming_msg
-            msg.body(
-                "📸 Kya aap apni problem ka photo share karna chahengi?\n\n"
-                "1️⃣ Haan (Yes)\n"
-                "2️⃣ Nahi (No)" 
-                )
-            return str(response)
-
-
 
         # ── AI symptom analysis ───────────────────────────────────
         # Route postpartum symptoms differently (Month 4)
@@ -793,6 +642,7 @@ def whatsapp_reply():
         msg.body("Namaste! 'Register' ya 'Hello' type karke shuru karein. 🌸")
 
     return str(response)
+
 
 
 # ─────────────────────────────────────────────────────────────────
