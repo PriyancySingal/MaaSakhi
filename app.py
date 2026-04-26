@@ -1239,7 +1239,7 @@ def bmo_dashboard(bmo_id):
                 onclick="location='?tab=patients'">👥 Block Patients</button>
     </div>
     <div class="panel">
-        {"<div>" + (alerts_html or '<p style=\"color:#9ca3af;text-align:center;padding:30px\">✅ No escalated alerts</p>') + "</div>"
+        {"<div>" + (alerts_html or '<p style="color:#9ca3af;text-align:center;padding:30px">✅ No escalated alerts</p>') + "</div>"
          if tab == "alerts" else ""}
         {"<p style='color:#9ca3af;text-align:center;padding:30px'>Patient list — use admin panel for full view.</p>"
          if tab == "patients" else ""}
