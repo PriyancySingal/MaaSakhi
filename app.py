@@ -105,174 +105,210 @@ def send_whatsapp(to, body):
 # ─────────────────────────────────────────────────────────────────
 # HOMEPAGE
 # ─────────────────────────────────────────────────────────────────
-
 HOMEPAGE_HTML = """
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>MaaSakhi</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MaaSakhi | Maternal Care AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:'Poppins',sans-serif;background:#f7faf9;color:#1f2937}
+        body{font-family:'Poppins',sans-serif;background:#f8fafc;color:#1e293b;overflow-x:hidden}
+        
+        /* Navigation */
         .navbar{display:flex;justify-content:space-between;align-items:center;
-                padding:16px 40px;background:white;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
-        .nav-title{font-weight:600;font-size:20px;color:#085041}
-        .nav-links a{margin-left:20px;text-decoration:none;color:#444;font-size:14px;font-weight:500}
+                padding:12px 8%;background:white;box-shadow:0 2px 10px rgba(0,0,0,0.05);position:sticky;top:0;z-index:100}
+        
+        /* Logo Styling */
+        .nav-logo-container{display:flex;align-items:center;text-decoration:none}
+        .logo-img{height:45px; width:auto; display:block; object-fit:contain}
+        
+        .nav-links a{margin-left:25px;text-decoration:none;color:#475569;font-size:14px;font-weight:500;transition:0.3s}
         .nav-links a:hover{color:#085041}
-        .hero{background:linear-gradient(135deg,#085041,#0a6b52);color:white;padding:80px 20px}
-        .hero-container{max-width:1100px;margin:auto;display:flex;
-                        justify-content:space-between;align-items:center;gap:40px;flex-wrap:wrap}
-        .hero-text{max-width:500px}
-        .hero-text h1{font-size:38px;font-weight:600}
-        .hero-text p{margin-top:12px;font-size:16px;opacity:0.9}
-        .hero-buttons{margin-top:20px}
-        .btn{display:inline-block;padding:12px 22px;border-radius:8px;
-             text-decoration:none;font-size:14px;font-weight:600;
-             margin-right:10px;margin-top:8px}
+
+        /* Hero */
+        .hero{background:linear-gradient(135deg,#085041,#0a6b52);color:white;padding:100px 8%}
+        .hero-container{max-width:1200px;margin:auto}
+        .hero-text h1{font-size:42px;font-weight:600;line-height:1.2}
+        .hero-text p{margin-top:20px;font-size:18px;opacity:0.9;max-width:600px}
+        .hero-buttons{margin-top:30px}
+        .btn{display:inline-block;padding:14px 28px;border-radius:50px;
+             text-decoration:none;font-size:15px;font-weight:600;transition:0.3s;margin-right:12px}
         .btn-primary{background:white;color:#085041}
-        .btn-secondary{background:#2D1267;color:white}
-        .trust{text-align:center;padding:30px 20px;font-size:14px;color:#555}
-        .trust span{margin:0 10px}
-        .portal-section{padding:50px 20px;max-width:1000px;margin:auto;text-align:center}
-        .portal-section h2{font-size:24px;color:#085041;margin-bottom:30px}
-        .portal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px}
-        .portal-card{background:white;padding:24px 16px;border-radius:14px;
-                     box-shadow:0 6px 18px rgba(0,0,0,0.08);border-top:4px solid #085041}
-        .portal-card .p-icon{font-size:32px;margin-bottom:10px}
-        .portal-card h3{font-size:15px;color:#085041;margin-bottom:6px}
-        .portal-card p{font-size:12px;color:#666;margin-bottom:16px}
-        .portal-card a{display:inline-block;padding:9px 18px;border-radius:8px;
-                       text-decoration:none;font-size:13px;font-weight:600;
-                       background:#085041;color:white}
-        .flow{text-align:center;padding:60px 20px}
-        .flow h2{font-size:26px;color:#085041}
-        .flow-subtext{margin-top:10px;font-size:14px;color:#666;
-                      max-width:700px;margin-left:auto;margin-right:auto}
-        .flow-grid{margin-top:40px;display:flex;align-items:center;
-                   justify-content:center;flex-wrap:wrap;gap:14px}
-        .flow-card{background:white;padding:18px;border-radius:14px;
-                   width:200px;box-shadow:0 6px 18px rgba(0,0,0,0.08);transition:0.2s}
-        .flow-card:hover{transform:translateY(-6px)}
-        .flow-card .icon{font-size:28px;margin-bottom:10px}
-        .flow-card h3{font-size:15px;margin-bottom:6px;color:#085041}
-        .flow-card p{font-size:12px;color:#666}
-        .flow-arrow{font-size:20px;color:#aaa}
-        .features{padding:50px 20px;max-width:1000px;margin:auto;text-align:center}
-        .features h2{font-size:24px;color:#085041}
-        .feature-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-                      gap:16px;margin-top:30px}
-        .card{background:white;padding:18px;border-radius:14px;
-              box-shadow:0 6px 18px rgba(0,0,0,0.08);transition:0.2s}
-        .card:hover{transform:translateY(-5px)}
-        .footer{text-align:center;font-size:12px;color:#777;padding:20px}
+        .btn-secondary{background:rgba(255,255,255,0.1);color:white;border:1px solid rgba(255,255,255,0.3)}
+        .btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.15)}
+
+        .trust{text-align:center;padding:30px;background:#fff;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0}
+        .trust span{margin:0 15px;display:inline-block}
+
+        /* Portals */
+        .portal-section{padding:80px 8%;max-width:1300px;margin:auto}
+        .section-title{text-align:center;margin-bottom:50px}
+        .section-title h2{font-size:28px;color:#085041}
+        .portal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:25px}
+        .portal-card{background:white;padding:35px 25px;border-radius:20px;text-align:center;
+                     box-shadow:0 10px 25px rgba(0,0,0,0.04);border-top:5px solid #085041;transition:0.3s}
+        .portal-card:hover{transform:translateY(-5px)}
+        .portal-card h3{font-size:17px;margin:15px 0 10px;color:#085041}
+        .portal-card p{font-size:13px;color:#64748b;margin-bottom:20px;height:40px}
+        .portal-card a{display:block;padding:10px;border-radius:8px;text-decoration:none;
+                       background:#085041;color:white;font-size:14px;font-weight:600}
+
+        /* How it Works */
+        .how-it-works{background:#f1f5f9;padding:80px 8%}
+        .flow-container{display:flex;justify-content:space-between;max-width:1100px;margin:50px auto 0;position:relative}
+        .flow-step{flex:1;text-align:center;padding:0 15px;position:relative;z-index:2}
+        .step-circle{width:50px;height:50px;background:#085041;color:white;border-radius:50%;
+                     display:flex;align-items:center;justify-content:center;margin:0 auto 20px;
+                     font-weight:600;box-shadow:0 0 0 8px rgba(8,80,65,0.1)}
+        .flow-step h3{font-size:15px;margin-bottom:8px;color:#085041}
+        .flow-step p{font-size:12px;color:#64748b}
+        .flow-line{position:absolute;top:25px;left:10%;right:10%;height:2px;background:#cbd5e1;z-index:1}
+
+        /* Key Features Slider */
+        .features-slider-section{padding:80px 0;background:white;overflow:hidden}
+        .slider-track{display:flex;gap:20px;padding:20px 0;width:max-content;animation:scroll 40s linear infinite}
+        .slider-track:hover{animation-play-state:paused}
+        .feature-item{width:280px;background:#f8faf9;padding:25px;border-radius:16px;
+                      border:1px solid #e2e8f0;flex-shrink:0;transition:0.3s}
+        .feature-item:hover{border-color:#085041;background:white;box-shadow:0 10px 20px rgba(0,0,0,0.05)}
+        .feature-item b{display:block;margin-bottom:8px;color:#085041;font-size:15px}
+        .feature-item p{font-size:13px;color:#64748b}
+
+        @keyframes scroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(calc(-280px * 6 - 120px)); }
+        }
+
+        .footer{text-align:center;padding:40px;background:#085041;color:rgba(255,255,255,0.7);font-size:12px}
+
         @media(max-width:768px){
-            .hero-container{text-align:center;justify-content:center}
-            .flow-arrow{display:none}
-            .navbar{padding:16px 20px}
+            .flow-container{flex-direction:column;gap:30px}
+            .flow-line{display:none}
+            .hero-text h1{font-size:32px}
+            .navbar{padding:12px 5%}
         }
     </style>
 </head>
 <body>
+
 <div class="navbar">
-    <div class="nav-title">🌿 MaaSakhi</div>
+    <a href="/" class="nav-logo-container">
+        <img src="logo.png" alt="MaaSakhi Logo" class="logo-img">
+    </a>
     <div class="nav-links">
-        <a href="/">Home</a>
+        <a href="/">Overview</a>
         <a href="/login">Login</a>
-        <a href="/admin/login">Admin</a>
+        <a href="/admin/login" style="color:#085041;font-weight:600">Admin Portal</a>
     </div>
 </div>
+
 <div class="hero">
     <div class="hero-container">
         <div class="hero-text">
-            <h1>AI-Powered Maternal Care on WhatsApp</h1>
-            <p>Empowering pregnant women, ASHA workers, supervisors,
-               and health officers with real-time monitoring,
-               risk detection, and timely interventions.</p>
+            <h1>AI-Powered Maternal Care <br>Directly on WhatsApp</h1>
+            <p>A mission-critical bridge between pregnant women and life-saving interventions using real-time AI triage and automated escalation.</p>
             <div class="hero-buttons">
-                <a href="/login"       class="btn btn-primary">Login Portal</a>
-                <a href="/admin/login" class="btn btn-secondary">Admin Panel</a>
+                <a href="/login" class="btn btn-primary">Health Worker Login</a>
+                <a href="/admin/login" class="btn btn-secondary">System Admin</a>
             </div>
         </div>
     </div>
 </div>
+
 <div class="trust">
-    <span>✔ WHO Guidelines</span><span>✔ NHM Integrated</span>
-    <span>✔ Real-time Alerts</span><span>✔ Multi-language AI</span>
-    <span>✔ Auto-Escalation</span><span>✔ 5-Tier Hierarchy</span>
+    <span>🛡 WHO Protocols</span><span>📋 NHM Integration</span><span>🌍 100+ Languages</span><span>🚨 Zero Delay Logic</span>
 </div>
+
+<div class="how-it-works">
+    <div class="section-title">
+        <h2>How MaaSakhi Protects</h2>
+        <p style="color:#64748b;margin-top:10px">A seamless communication loop from village to district hospital.</p>
+    </div>
+    <div class="flow-container">
+        <div class="flow-line"></div>
+        <div class="flow-step">
+            <div class="step-circle">1</div>
+            <h3>Reporting</h3>
+            <p>Patient sends symptoms via WhatsApp (Voice/Text).</p>
+        </div>
+        <div class="flow-step">
+            <div class="step-circle">2</div>
+            <h3>AI Analysis</h3>
+            <p>Groq AI triages risk levels instantly.</p>
+        </div>
+        <div class="flow-step">
+            <div class="step-circle">3</div>
+            <h3>Alerting</h3>
+            <p>ASHA receives priority alert with Maps location.</p>
+        </div>
+        <div class="flow-step">
+            <div class="step-circle">4</div>
+            <h3>Escalation</h3>
+            <p>MO/DHO notified if no response within 2 hours.</p>
+        </div>
+        <div class="flow-step">
+            <div class="step-circle">5</div>
+            <h3>Resolution</h3>
+            <p>Follow-up logged and risk status updated.</p>
+        </div>
+    </div>
+</div>
+
 <div class="portal-section">
-    <h2>Login Portals</h2>
+    <div class="section-title"><h2>Specialized Access Portals</h2></div>
     <div class="portal-grid">
         <div class="portal-card" style="border-color:#085041">
-            <div class="p-icon">👩</div><h3>ASHA Worker</h3>
-            <p>View patients, respond to alerts, log visit outcomes</p>
-            <a href="/login">Login</a>
+            <div style="font-size:30px">👩‍⚕️</div>
+            <h3>ASHA Worker</h3>
+            <p>Manage village patients and active alerts.</p>
+            <a href="/login">Access Portal</a>
         </div>
-        <div class="portal-card" style="border-color:#0369A1">
-            <div class="p-icon">👩‍💼</div><h3>Supervisor (ANM)</h3>
-            <p>Monitor ASHA workers, handle escalated alerts</p>
-            <a href="/login" style="background:#0369A1">Login</a>
+        <div class="portal-card" style="border-color:#0369a1">
+            <div style="font-size:30px">📋</div>
+            <h3>Supervisor</h3>
+            <p>Monitor ASHA performance and Amber risks.</p>
+            <a href="/login" style="background:#0369a1">Access Portal</a>
         </div>
-        <div class="portal-card" style="border-color:#B45309">
-            <div class="p-icon">🏥</div><h3>Block Medical Officer</h3>
-            <p>Block-level oversight, critical escalation management</p>
-            <a href="/login" style="background:#B45309">Login</a>
+        <div class="portal-card" style="border-color:#b45309">
+            <div style="font-size:30px">🏥</div>
+            <h3>Medical Officer</h3>
+            <p>Clinical oversight for block-level emergencies.</p>
+            <a href="/login" style="background:#b45309">Access Portal</a>
         </div>
-        <div class="portal-card" style="border-color:#7C3AED">
-            <div class="p-icon">🏛</div><h3>District Admin (DHO)</h3>
-            <p>Full district analytics, manage entire hierarchy</p>
-            <a href="/admin/login" style="background:#7C3AED">Login</a>
+        <div class="portal-card" style="border-color:#7c3aed">
+            <div style="font-size:30px">📊</div>
+            <h3>Health Admin</h3>
+            <p>District-wide analytics and system health.</p>
+            <a href="/admin/login" style="background:#7c3aed">Access Portal</a>
         </div>
     </div>
 </div>
-<div class="flow">
-    <h2>How MaaSakhi Works</h2>
-    <p class="flow-subtext">A continuous care loop connecting patients, AI,
-       ASHA workers, and health officers for early detection and timely intervention.</p>
-    <div class="flow-grid">
-        <div class="flow-card"><div class="icon">👩</div><h3>Patient Reports</h3>
-            <p>Women report symptoms via WhatsApp in their local language.</p></div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-card"><div class="icon">🤖</div><h3>AI Triage</h3>
-            <p>Groq AI classifies risk as GREEN, AMBER, or RED instantly.</p></div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-card"><div class="icon">🚨</div><h3>ASHA Alerted</h3>
-            <p>High-risk triggers instant WhatsApp alert with Maps link.</p></div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-card"><div class="icon">⬆️</div><h3>Auto-Escalation</h3>
-            <p>No response in 2hrs → escalates to Supervisor → BMO → DHO.</p></div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-card"><div class="icon">🏥</div><h3>Timely Care</h3>
-            <p>Patient receives attention before condition becomes critical.</p></div>
+
+<div class="features-slider-section">
+    <div class="section-title"><h2>Key Capabilities</h2></div>
+    <div class="slider-track">
+        <div class="feature-item"><b>📱 WhatsApp Native</b><p>No app installation required for patients or workers.</p></div>
+        <div class="feature-item"><b>🌍 Multilingual AI</b><p>Supports 100+ Indian languages and regional dialects.</p></div>
+        <div class="feature-item"><b>🚨 Smart Escalation</b><p>Hierarchical alerts (ASHA → ANM → BMO → DHO).</p></div>
+        <div class="feature-item"><b>🎙️ Voice Intelligence</b><p>Hindi/Regional voice note processing via Whisper AI.</p></div>
+        <div class="feature-item"><b>📍 Live Tracking</b><p>Google Maps integration for emergency patient location.</p></div>
+        <div class="feature-item"><b>📈 Data Analytics</b><p>Real-time district-level maternal health heatmaps.</p></div>
+        <div class="feature-item"><b>📱 WhatsApp Native</b><p>No app installation required for patients or workers.</p></div>
+        <div class="feature-item"><b>🌍 Multilingual AI</b><p>Supports 100+ Indian languages and regional dialects.</p></div>
+        <div class="feature-item"><b>🚨 Smart Escalation</b><p>Hierarchical alerts (ASHA → ANM → BMO → DHO).</p></div>
     </div>
 </div>
-<div class="features">
-    <h2>Key Features</h2>
-    <div class="feature-grid">
-        <div class="card">📱 WhatsApp Bot — No App Needed</div>
-        <div class="card">🚨 Real-time ASHA Alerts + Maps</div>
-        <div class="card">⬆️ Auto-Escalation Hierarchy</div>
-        <div class="card">🌍 100+ Indian Languages</div>
-        <div class="card">🎤 Hindi Voice Notes (Whisper AI)</div>
-        <div class="card">📊 Personalized Risk Scoring</div>
-        <div class="card">👶 Postpartum + Child Health</div>
-        <div class="card">💉 Immunization Reminders</div>
-        <div class="card">🏛️ Govt Scheme Tracking</div>
-        <div class="card">📋 ANC Visit Records</div>
-        <div class="card">📈 District Analytics</div>
-        <div class="card">📄 NHM Data Export</div>
-    </div>
-</div>
+
 <div class="footer">
-    MaaSakhi • AI-driven Maternal Health Support System •
-    Powered by WHO + NHM + FOGSI Guidelines
+    <p>MaaSakhi Intelligence © 2026 • Powered by WHO + NHM + FOGSI Clinical Guidelines</p>
 </div>
+
 </body>
 </html>
 """
-
 
 # ─────────────────────────────────────────────────────────────────
 # HELPERS
