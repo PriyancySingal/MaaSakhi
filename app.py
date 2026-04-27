@@ -119,12 +119,8 @@ HOMEPAGE_HTML = """
         
         /* Navigation */
         .navbar{display:flex;justify-content:space-between;align-items:center;
-                padding:12px 8%;background:white;box-shadow:0 2px 10px rgba(0,0,0,0.05);position:sticky;top:0;z-index:100}
-        
-        /* Logo Styling */
-        .nav-logo-container{display:flex;align-items:center;text-decoration:none}
-        .logo-img{height:45px; width:auto; display:block; object-fit:contain}
-        
+                padding:16px 8%;background:white;box-shadow:0 2px 10px rgba(0,0,0,0.05);position:sticky;top:0;z-index:100}
+        .nav-title{font-weight:600;font-size:22px;color:#085041;display:flex;align-items:center;gap:8px}
         .nav-links a{margin-left:25px;text-decoration:none;color:#475569;font-size:14px;font-weight:500;transition:0.3s}
         .nav-links a:hover{color:#085041}
 
@@ -156,7 +152,7 @@ HOMEPAGE_HTML = """
         .portal-card a{display:block;padding:10px;border-radius:8px;text-decoration:none;
                        background:#085041;color:white;font-size:14px;font-weight:600}
 
-        /* How it Works */
+        /* How it Works - Professional Alignment */
         .how-it-works{background:#f1f5f9;padding:80px 8%}
         .flow-container{display:flex;justify-content:space-between;max-width:1100px;margin:50px auto 0;position:relative}
         .flow-step{flex:1;text-align:center;padding:0 15px;position:relative;z-index:2}
@@ -167,7 +163,7 @@ HOMEPAGE_HTML = """
         .flow-step p{font-size:12px;color:#64748b}
         .flow-line{position:absolute;top:25px;left:10%;right:10%;height:2px;background:#cbd5e1;z-index:1}
 
-        /* Key Features Slider */
+        /* Key Features - Slider */
         .features-slider-section{padding:80px 0;background:white;overflow:hidden}
         .slider-track{display:flex;gap:20px;padding:20px 0;width:max-content;animation:scroll 40s linear infinite}
         .slider-track:hover{animation-play-state:paused}
@@ -188,16 +184,13 @@ HOMEPAGE_HTML = """
             .flow-container{flex-direction:column;gap:30px}
             .flow-line{display:none}
             .hero-text h1{font-size:32px}
-            .navbar{padding:12px 5%}
         }
     </style>
 </head>
 <body>
 
 <div class="navbar">
-    <a href="/" class="nav-logo-container">
-        <img src="logo.png" alt="MaaSakhi Logo" class="logo-img">
-    </a>
+    <div class="nav-title">🌿 MaaSakhi</div>
     <div class="nav-links">
         <a href="/">Overview</a>
         <a href="/login">Login</a>
