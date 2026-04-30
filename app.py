@@ -105,203 +105,174 @@ def send_whatsapp(to, body):
 # ─────────────────────────────────────────────────────────────────
 # HOMEPAGE
 # ─────────────────────────────────────────────────────────────────
+
 HOMEPAGE_HTML = """
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MaaSakhi | Maternal Care AI</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <title>MaaSakhi</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:'Poppins',sans-serif;background:#f8fafc;color:#1e293b;overflow-x:hidden}
-        
-        /* Navigation */
+        body{font-family:'Poppins',sans-serif;background:#f7faf9;color:#1f2937}
         .navbar{display:flex;justify-content:space-between;align-items:center;
-                padding:16px 8%;background:white;box-shadow:0 2px 10px rgba(0,0,0,0.05);position:sticky;top:0;z-index:100}
-        .nav-title{font-weight:600;font-size:22px;color:#085041;display:flex;align-items:center;gap:8px}
-        .nav-links a{margin-left:25px;text-decoration:none;color:#475569;font-size:14px;font-weight:500;transition:0.3s}
+                padding:16px 40px;background:white;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
+        .nav-title{font-weight:600;font-size:20px;color:#085041}
+        .nav-links a{margin-left:20px;text-decoration:none;color:#444;font-size:14px;font-weight:500}
         .nav-links a:hover{color:#085041}
-
-        /* Hero */
-        .hero{background:linear-gradient(135deg,#085041,#0a6b52);color:white;padding:100px 8%}
-        .hero-container{max-width:1200px;margin:auto}
-        .hero-text h1{font-size:42px;font-weight:600;line-height:1.2}
-        .hero-text p{margin-top:20px;font-size:18px;opacity:0.9;max-width:600px}
-        .hero-buttons{margin-top:30px}
-        .btn{display:inline-block;padding:14px 28px;border-radius:50px;
-             text-decoration:none;font-size:15px;font-weight:600;transition:0.3s;margin-right:12px}
+        .hero{background:linear-gradient(135deg,#085041,#0a6b52);color:white;padding:80px 20px}
+        .hero-container{max-width:1100px;margin:auto;display:flex;
+                        justify-content:space-between;align-items:center;gap:40px;flex-wrap:wrap}
+        .hero-text{max-width:500px}
+        .hero-text h1{font-size:38px;font-weight:600}
+        .hero-text p{margin-top:12px;font-size:16px;opacity:0.9}
+        .hero-buttons{margin-top:20px}
+        .btn{display:inline-block;padding:12px 22px;border-radius:8px;
+             text-decoration:none;font-size:14px;font-weight:600;
+             margin-right:10px;margin-top:8px}
         .btn-primary{background:white;color:#085041}
-        .btn-secondary{background:rgba(255,255,255,0.1);color:white;border:1px solid rgba(255,255,255,0.3)}
-        .btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.15)}
-
-        .trust{text-align:center;padding:30px;background:#fff;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0}
-        .trust span{margin:0 15px;display:inline-block}
-
-        /* Portals */
-        .portal-section{padding:80px 8%;max-width:1300px;margin:auto}
-        .section-title{text-align:center;margin-bottom:50px}
-        .section-title h2{font-size:28px;color:#085041}
-        .portal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:25px}
-        .portal-card{background:white;padding:35px 25px;border-radius:20px;text-align:center;
-                     box-shadow:0 10px 25px rgba(0,0,0,0.04);border-top:5px solid #085041;transition:0.3s}
-        .portal-card:hover{transform:translateY(-5px)}
-        .portal-card h3{font-size:17px;margin:15px 0 10px;color:#085041}
-        .portal-card p{font-size:13px;color:#64748b;margin-bottom:20px;height:40px}
-        .portal-card a{display:block;padding:10px;border-radius:8px;text-decoration:none;
-                       background:#085041;color:white;font-size:14px;font-weight:600}
-
-        /* How it Works - Professional Alignment */
-        .how-it-works{background:#f1f5f9;padding:80px 8%}
-        .flow-container{display:flex;justify-content:space-between;max-width:1100px;margin:50px auto 0;position:relative}
-        .flow-step{flex:1;text-align:center;padding:0 15px;position:relative;z-index:2}
-        .step-circle{width:50px;height:50px;background:#085041;color:white;border-radius:50%;
-                     display:flex;align-items:center;justify-content:center;margin:0 auto 20px;
-                     font-weight:600;box-shadow:0 0 0 8px rgba(8,80,65,0.1)}
-        .flow-step h3{font-size:15px;margin-bottom:8px;color:#085041}
-        .flow-step p{font-size:12px;color:#64748b}
-        .flow-line{position:absolute;top:25px;left:10%;right:10%;height:2px;background:#cbd5e1;z-index:1}
-
-        /* Key Features - Slider */
-        .features-slider-section{padding:80px 0;background:white;overflow:hidden}
-        .slider-track{display:flex;gap:20px;padding:20px 0;width:max-content;animation:scroll 40s linear infinite}
-        .slider-track:hover{animation-play-state:paused}
-        .feature-item{width:280px;background:#f8faf9;padding:25px;border-radius:16px;
-                      border:1px solid #e2e8f0;flex-shrink:0;transition:0.3s}
-        .feature-item:hover{border-color:#085041;background:white;box-shadow:0 10px 20px rgba(0,0,0,0.05)}
-        .feature-item b{display:block;margin-bottom:8px;color:#085041;font-size:15px}
-        .feature-item p{font-size:13px;color:#64748b}
-
-        @keyframes scroll {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(calc(-280px * 6 - 120px)); }
-        }
-
-        .footer{text-align:center;padding:40px;background:#085041;color:rgba(255,255,255,0.7);font-size:12px}
-
+        .btn-secondary{background:#2D1267;color:white}
+        .trust{text-align:center;padding:30px 20px;font-size:14px;color:#555}
+        .trust span{margin:0 10px}
+        .portal-section{padding:50px 20px;max-width:1000px;margin:auto;text-align:center}
+        .portal-section h2{font-size:24px;color:#085041;margin-bottom:30px}
+        .portal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px}
+        .portal-card{background:white;padding:24px 16px;border-radius:14px;
+                     box-shadow:0 6px 18px rgba(0,0,0,0.08);border-top:4px solid #085041}
+        .portal-card .p-icon{font-size:32px;margin-bottom:10px}
+        .portal-card h3{font-size:15px;color:#085041;margin-bottom:6px}
+        .portal-card p{font-size:12px;color:#666;margin-bottom:16px}
+        .portal-card a{display:inline-block;padding:9px 18px;border-radius:8px;
+                       text-decoration:none;font-size:13px;font-weight:600;
+                       background:#085041;color:white}
+        .flow{text-align:center;padding:60px 20px}
+        .flow h2{font-size:26px;color:#085041}
+        .flow-subtext{margin-top:10px;font-size:14px;color:#666;
+                      max-width:700px;margin-left:auto;margin-right:auto}
+        .flow-grid{margin-top:40px;display:flex;align-items:center;
+                   justify-content:center;flex-wrap:wrap;gap:14px}
+        .flow-card{background:white;padding:18px;border-radius:14px;
+                   width:200px;box-shadow:0 6px 18px rgba(0,0,0,0.08);transition:0.2s}
+        .flow-card:hover{transform:translateY(-6px)}
+        .flow-card .icon{font-size:28px;margin-bottom:10px}
+        .flow-card h3{font-size:15px;margin-bottom:6px;color:#085041}
+        .flow-card p{font-size:12px;color:#666}
+        .flow-arrow{font-size:20px;color:#aaa}
+        .features{padding:50px 20px;max-width:1000px;margin:auto;text-align:center}
+        .features h2{font-size:24px;color:#085041}
+        .feature-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+                      gap:16px;margin-top:30px}
+        .card{background:white;padding:18px;border-radius:14px;
+              box-shadow:0 6px 18px rgba(0,0,0,0.08);transition:0.2s}
+        .card:hover{transform:translateY(-5px)}
+        .footer{text-align:center;font-size:12px;color:#777;padding:20px}
         @media(max-width:768px){
-            .flow-container{flex-direction:column;gap:30px}
-            .flow-line{display:none}
-            .hero-text h1{font-size:32px}
+            .hero-container{text-align:center;justify-content:center}
+            .flow-arrow{display:none}
+            .navbar{padding:16px 20px}
         }
     </style>
 </head>
 <body>
-
 <div class="navbar">
     <div class="nav-title">🌿 MaaSakhi</div>
     <div class="nav-links">
-        <a href="/">Overview</a>
+        <a href="/">Home</a>
         <a href="/login">Login</a>
-        <a href="/admin/login" style="color:#085041;font-weight:600">Admin Portal</a>
+        <a href="/admin/login">Admin</a>
     </div>
 </div>
-
 <div class="hero">
     <div class="hero-container">
         <div class="hero-text">
-            <h1>AI-Powered Maternal Care <br>Directly on WhatsApp</h1>
-            <p>A mission-critical bridge between pregnant women and life-saving interventions using real-time AI triage and automated escalation.</p>
+            <h1>AI-Powered Maternal Care on WhatsApp</h1>
+            <p>Empowering pregnant women, ASHA workers, supervisors,
+               and health officers with real-time monitoring,
+               risk detection, and timely interventions.</p>
             <div class="hero-buttons">
-                <a href="/login" class="btn btn-primary">Health Worker Login</a>
-                <a href="/admin/login" class="btn btn-secondary">System Admin</a>
+                <a href="/login"       class="btn btn-primary">Login Portal</a>
+                <a href="/admin/login" class="btn btn-secondary">Admin Panel</a>
             </div>
         </div>
     </div>
 </div>
-
 <div class="trust">
-    <span>🛡 WHO Protocols</span><span>📋 NHM Integration</span><span>🌍 100+ Languages</span><span>🚨 Zero Delay Logic</span>
+    <span>✔ WHO Guidelines</span><span>✔ NHM Integrated</span>
+    <span>✔ Real-time Alerts</span><span>✔ Multi-language AI</span>
+    <span>✔ Auto-Escalation</span><span>✔ 5-Tier Hierarchy</span>
 </div>
-
-<div class="how-it-works">
-    <div class="section-title">
-        <h2>How MaaSakhi Protects</h2>
-        <p style="color:#64748b;margin-top:10px">A seamless communication loop from village to district hospital.</p>
-    </div>
-    <div class="flow-container">
-        <div class="flow-line"></div>
-        <div class="flow-step">
-            <div class="step-circle">1</div>
-            <h3>Reporting</h3>
-            <p>Patient sends symptoms via WhatsApp (Voice/Text).</p>
-        </div>
-        <div class="flow-step">
-            <div class="step-circle">2</div>
-            <h3>AI Analysis</h3>
-            <p>Groq AI triages risk levels instantly.</p>
-        </div>
-        <div class="flow-step">
-            <div class="step-circle">3</div>
-            <h3>Alerting</h3>
-            <p>ASHA receives priority alert with Maps location.</p>
-        </div>
-        <div class="flow-step">
-            <div class="step-circle">4</div>
-            <h3>Escalation</h3>
-            <p>MO/DHO notified if no response within 2 hours.</p>
-        </div>
-        <div class="flow-step">
-            <div class="step-circle">5</div>
-            <h3>Resolution</h3>
-            <p>Follow-up logged and risk status updated.</p>
-        </div>
-    </div>
-</div>
-
 <div class="portal-section">
-    <div class="section-title"><h2>Specialized Access Portals</h2></div>
+    <h2>Login Portals</h2>
     <div class="portal-grid">
         <div class="portal-card" style="border-color:#085041">
-            <div style="font-size:30px">👩‍⚕️</div>
-            <h3>ASHA Worker</h3>
-            <p>Manage village patients and active alerts.</p>
-            <a href="/login">Access Portal</a>
+            <div class="p-icon">👩</div><h3>ASHA Worker</h3>
+            <p>View patients, respond to alerts, log visit outcomes</p>
+            <a href="/login">Login</a>
         </div>
-        <div class="portal-card" style="border-color:#0369a1">
-            <div style="font-size:30px">📋</div>
-            <h3>Supervisor</h3>
-            <p>Monitor ASHA performance and Amber risks.</p>
-            <a href="/login" style="background:#0369a1">Access Portal</a>
+        <div class="portal-card" style="border-color:#0369A1">
+            <div class="p-icon">👩‍💼</div><h3>Supervisor (ANM)</h3>
+            <p>Monitor ASHA workers, handle escalated alerts</p>
+            <a href="/login" style="background:#0369A1">Login</a>
         </div>
-        <div class="portal-card" style="border-color:#b45309">
-            <div style="font-size:30px">🏥</div>
-            <h3>Medical Officer</h3>
-            <p>Clinical oversight for block-level emergencies.</p>
-            <a href="/login" style="background:#b45309">Access Portal</a>
+        <div class="portal-card" style="border-color:#B45309">
+            <div class="p-icon">🏥</div><h3>Block Medical Officer</h3>
+            <p>Block-level oversight, critical escalation management</p>
+            <a href="/login" style="background:#B45309">Login</a>
         </div>
-        <div class="portal-card" style="border-color:#7c3aed">
-            <div style="font-size:30px">📊</div>
-            <h3>Health Admin</h3>
-            <p>District-wide analytics and system health.</p>
-            <a href="/admin/login" style="background:#7c3aed">Access Portal</a>
+        <div class="portal-card" style="border-color:#7C3AED">
+            <div class="p-icon">🏛</div><h3>District Admin (DHO)</h3>
+            <p>Full district analytics, manage entire hierarchy</p>
+            <a href="/admin/login" style="background:#7C3AED">Login</a>
         </div>
     </div>
 </div>
-
-<div class="features-slider-section">
-    <div class="section-title"><h2>Key Capabilities</h2></div>
-    <div class="slider-track">
-        <div class="feature-item"><b>📱 WhatsApp Native</b><p>No app installation required for patients or workers.</p></div>
-        <div class="feature-item"><b>🌍 Multilingual AI</b><p>Supports 100+ Indian languages and regional dialects.</p></div>
-        <div class="feature-item"><b>🚨 Smart Escalation</b><p>Hierarchical alerts (ASHA → ANM → BMO → DHO).</p></div>
-        <div class="feature-item"><b>🎙️ Voice Intelligence</b><p>Hindi/Regional voice note processing via Whisper AI.</p></div>
-        <div class="feature-item"><b>📍 Live Tracking</b><p>Google Maps integration for emergency patient location.</p></div>
-        <div class="feature-item"><b>📈 Data Analytics</b><p>Real-time district-level maternal health heatmaps.</p></div>
-        <div class="feature-item"><b>📱 WhatsApp Native</b><p>No app installation required for patients or workers.</p></div>
-        <div class="feature-item"><b>🌍 Multilingual AI</b><p>Supports 100+ Indian languages and regional dialects.</p></div>
-        <div class="feature-item"><b>🚨 Smart Escalation</b><p>Hierarchical alerts (ASHA → ANM → BMO → DHO).</p></div>
+<div class="flow">
+    <h2>How MaaSakhi Works</h2>
+    <p class="flow-subtext">A continuous care loop connecting patients, AI,
+       ASHA workers, and health officers for early detection and timely intervention.</p>
+    <div class="flow-grid">
+        <div class="flow-card"><div class="icon">👩</div><h3>Patient Reports</h3>
+            <p>Women report symptoms via WhatsApp in their local language.</p></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-card"><div class="icon">🤖</div><h3>AI Triage</h3>
+            <p>Groq AI classifies risk as GREEN, AMBER, or RED instantly.</p></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-card"><div class="icon">🚨</div><h3>ASHA Alerted</h3>
+            <p>High-risk triggers instant WhatsApp alert with Maps link.</p></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-card"><div class="icon">⬆️</div><h3>Auto-Escalation</h3>
+            <p>No response in 2hrs → escalates to Supervisor → BMO → DHO.</p></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-card"><div class="icon">🏥</div><h3>Timely Care</h3>
+            <p>Patient receives attention before condition becomes critical.</p></div>
     </div>
 </div>
-
+<div class="features">
+    <h2>Key Features</h2>
+    <div class="feature-grid">
+        <div class="card">📱 WhatsApp Bot — No App Needed</div>
+        <div class="card">🚨 Real-time ASHA Alerts + Maps</div>
+        <div class="card">⬆️ Auto-Escalation Hierarchy</div>
+        <div class="card">🌍 100+ Indian Languages</div>
+        <div class="card">🎤 Hindi Voice Notes (Whisper AI)</div>
+        <div class="card">📊 Personalized Risk Scoring</div>
+        <div class="card">👶 Postpartum + Child Health</div>
+        <div class="card">💉 Immunization Reminders</div>
+        <div class="card">🏛️ Govt Scheme Tracking</div>
+        <div class="card">📋 ANC Visit Records</div>
+        <div class="card">📈 District Analytics</div>
+        <div class="card">📄 NHM Data Export</div>
+    </div>
+</div>
 <div class="footer">
-    <p>MaaSakhi Intelligence © 2026 • Powered by WHO + NHM + FOGSI Clinical Guidelines</p>
+    MaaSakhi • AI-driven Maternal Health Support System •
+    Powered by WHO + NHM + FOGSI Guidelines
 </div>
-
 </body>
 </html>
 """
+
 
 # ─────────────────────────────────────────────────────────────────
 # HELPERS
@@ -350,18 +321,6 @@ def _maps_link(address, village):
     return f"https://www.google.com/maps/dir/?api=1&destination={encoded}"
 
 
-def is_visual_symptom(text):
-    text = text.lower()
-    keywords = [
-        "rash", "allergy", "itch", "itching", "skin",
-        "burn", "cut", "wound", "injury", "swelling",
-        "redness", "infection", "pimple", "blister",
-        "daane", "khujli", "jalan", "sujan", "ghav"
-    ]
-    return any(k in text for k in keywords)
-
-
-
 # ─────────────────────────────────────────────────────────────────
 # WHATSAPP BOT
 # ─────────────────────────────────────────────────────────────────
@@ -396,7 +355,7 @@ def whatsapp_reply():
     # ── Load / create patient ─────────────────────────────────────
     user = get_patient(sender) or {
         "phone": sender, "name": "", "week": 0,
-        "step": "welcome", "language": "",
+        "step": "welcome", "language": "Hindi",
         "asha_id": "default_asha", "supervisor_id": "",
         "bmo_id": "", "village": "", "address": "", "status": "active"
     }
@@ -428,7 +387,6 @@ def whatsapp_reply():
     # ── Delivery date collection (Month 4) ────────────────────────
     if user["step"] == "get_delivery_date":
         try:
-            # Accept DD/MM/YYYY or YYYY-MM-DD
             raw = incoming_msg.strip()
             for fmt in ["%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"]:
                 try:
@@ -444,7 +402,6 @@ def whatsapp_reply():
                 sender, delivery_str,
                 asha_id=user.get("asha_id", "default_asha")
             )
-            # Notify ASHA worker
             asha_info = get_asha_by_phone(user.get("asha_id", ""))
             if asha_info:
                 send_whatsapp(
@@ -495,129 +452,41 @@ def whatsapp_reply():
                 "Koi symptom feel ho toh batao, ya 'progress' type karo! 🌸"
             )
             return str(response)
-        
-        # 👉 NEW: Ask language
-        save_patient(sender, "", 0, "select_language")
-        msg.body(
-            "🌸 Namaste! Welcome to MaaSakhi\n\n"
-            "Please choose your language:\n\n"
-            "1️. English\n"
-            "2️⃣ Hindi\n"
-            "3️⃣ Hinglish\n\n"
-            "Reply with 1 / 2 / 3")
-        return str(response)
 
-        
-        
-    elif user["step"] == "select_language":
-        choice = incoming_msg.strip()
-        if choice == "1":
-            lang = "English"
-            reply = "Great! Let's continue in English. 😊"
-        elif choice == "2":
-            lang = "Hindi"
-            reply = "Bahut badhiya! Hum Hindi mein baat karenge. 😊"
-        elif choice == "3":
-            lang = "Hinglish"
-            reply = "Cool! Hinglish mein continue karte hain 😄"
-        else:
-            msg.body("Please reply with 1, 2 or 3.")
-            return str(response)
-        save_patient(sender, "", 0, "get_name", lang)
+        save_patient(sender, "", 0, "get_name")
         msg.body(
             "🌸 Namaste! Welcome to MaaSakhi — aapki maternal health companion!\n\n"
             "Pehle mujhe apna naam batao:\nPlease tell me your name:"
         )
-        return str(response)
 
-    elif user["step"] == "ask_image_permission":
-        choice = incoming_msg.strip()
-        if choice == "1":
-            save_patient(
-                sender, user["name"], user["week"],
-                "awaiting_image",
-                user["language"],
-                user.get("asha_id", "default_asha"),
-                user.get("village", ""),
-                user.get("address", ""),
-                user.get("supervisor_id", ""),
-                user.get("bmo_id", ""))
-            msg.body(
-                "📸 Theek hai!\n\n"
-                "Kripya ab apni problem ka clear photo bhejein.\n"
-                "Jaise: rash, swelling, wound etc.")
-            return str(response)
-        elif choice == "2":# Skip image → continue normal flow
-            save_patient(
-                sender, user["name"], user["week"],
-                "registered",
-                user["language"],
-                user.get("asha_id", "default_asha"),
-                user.get("village", ""),
-                user.get("address", ""),
-                user.get("supervisor_id", ""),
-                user.get("bmo_id", "")
-                )
-            symptom = session.get("last_symptom", incoming_msg)
-            level, reply, alert_needed = analyze(symptom, user["week"])
-            save_symptom_log(sender, user["week"], symptom, level)
-            msg.body(reply)
-            return str(response)
-        else:
-            msg.body("Please 1 ya 2 mein se choose karein.")
-            return str(response)
-        
-    elif user["step"] == "awaiting_image":
-        num_media = int(request.values.get("NumMedia", 0))
-        media_url = request.values.get("MediaUrl0", "")
-        media_type = request.values.get("MediaContentType0", "")
-        if num_media > 0 and "image" in (media_type or ""):
-            # Send image to ASHA worker
-            asha_info = get_asha_by_phone(user.get("asha_id", ""))
-            if asha_info:
-                send_whatsapp(
-                    asha_info["phone"],
-                    f"📸 *Patient Image Received*\n\n"
-                    f"Name: {user['name']}\n"
-                    f"Phone: {sender}\n\n"
-                    f"🔗 Image: {media_url}"
-                )
-            # Continue analysis
-            symptom = session.get("last_symptom", "")
-            level, reply, alert_needed = analyze(symptom, user["week"])
-            save_symptom_log(sender, user["week"], symptom, level)
-            # Reset step
-            save_patient(
-                sender, user["name"], user["week"],
-                "registered",
-                user["language"],
-                user.get("asha_id", "default_asha"),
-                user.get("village", ""),
-                user.get("address", ""),
-                user.get("supervisor_id", ""),
-                user.get("bmo_id", ""))
-            msg.body(
-                f"✅ Photo mil gaya.\n\n{reply}\n\n"
-                "ASHA worker ko bhi bhej diya gaya hai. 💚")
-            return str(response)
-        else:
-            msg.body("Kripya ek clear image bhejein 📸")
-            return str(response)
-    
-
-
+    # ── Step: collect name ────────────────────────────────────────
     elif user["step"] == "get_name":
-        save_patient(sender, incoming_msg, 0, "get_week")
+        save_patient(sender, incoming_msg, 0, "get_language")
         msg.body(
             f"Namaste {incoming_msg}! 🙏\n\n"
-            "Aap kitne hafte ki pregnant hain?\n"
-            "How many weeks pregnant are you?\n\nSirf number — Example: 26"
+            "Please tell me your preferred language.\n"
+            "Aap kis bhasha mein baat karna chahti hain?\n\n"
+            "Example: Hindi, English, Bengali, Tamil, Telugu, "
+            "Marathi, Gujarati, Odia, Punjabi, Urdu..."
         )
 
+    # ── Step: collect language ────────────────────────────────────
+    elif user["step"] == "get_language":
+        language = incoming_msg.strip().title()
+        save_patient(sender, user["name"], 0, "get_week", language)
+        msg.body(
+            f"✅ Language set to {language}! 🌸\n\n"
+            "Aap kitne hafte ki pregnant hain?\n"
+            "How many weeks pregnant are you?\n\n"
+            "Example: 26"
+        )
+
+    # ── Step: collect pregnancy week ──────────────────────────────
     elif user["step"] == "get_week":
         try:
             week = int(incoming_msg)
-            save_patient(sender, user["name"], week, "get_village")
+            save_patient(sender, user["name"], week, "get_village",
+                         user.get("language", "Hindi"))
             msg.body(
                 "Shukriya! 🌸\n\nAap kis gaon mein rehti hain?\n"
                 "Which village do you live in?\n\nExample: Rampur"
@@ -625,16 +494,17 @@ def whatsapp_reply():
         except ValueError:
             msg.body("Sirf number bhejiye. Example: 26")
 
+    # ── Step: collect village ─────────────────────────────────────
     elif user["step"] == "get_village":
         village = incoming_msg.strip()
         asha    = get_asha_by_village(village)
-        asha_id       = asha["asha_id"]             if asha else "default_asha"
-        supervisor_id = asha.get("supervisor_id","") if asha else ""
+        asha_id       = asha["asha_id"]              if asha else "default_asha"
+        supervisor_id = asha.get("supervisor_id", "") if asha else ""
         bmo_id        = _bmo_id_from_supervisor(supervisor_id)
 
         save_patient(
             sender, user["name"], user["week"], "get_address",
-            user["language"], asha_id, village, "",
+            user.get("language", "Hindi"), asha_id, village, "",
             supervisor_id, bmo_id
         )
         msg.body(
@@ -645,19 +515,23 @@ def whatsapp_reply():
             "(Yeh ASHA worker ko emergency mein dhundhne mein madad karega 🏥)"
         )
 
+    # ── Step: collect address → complete registration ─────────────
     elif user["step"] == "get_address":
         address = incoming_msg.strip()
         user    = get_patient(sender)   # reload with saved asha_id etc.
         save_patient(
             sender, user["name"], user["week"], "registered",
-            user["language"],
+            user.get("language", "Hindi"),
             user.get("asha_id",       "default_asha"),
             user.get("village",       ""),
             address,
             user.get("supervisor_id", ""),
             user.get("bmo_id",        "")
         )
-        _, tip_msg, _ = analyze("tip", user["week"])
+        _, tip_msg, _ = analyze(
+            "tip", user["week"],
+            language=user.get("language", "Hindi")
+        )
         msg.body(
             f"✅ Aap registered hain, {user['name']}!\n\n"
             f"📍 Village: {user.get('village','')}\n"
@@ -723,27 +597,28 @@ def whatsapp_reply():
             msg.body(scheme_reply)
             return str(response)
 
-        # ── Update language ───────────────────────────────────────
-        # ✅ Smart language handling
-        detected_lang = detect_language(incoming_msg)
-        # Case 1: If user has NOT selected language yet → use detection
-        if not user.get("language"):
-            save_patient(
-                sender, user["name"], user["week"], "registered",
-                detected_lang,
-                user.get("asha_id", "default_asha"),
-                user.get("village", ""),
-                user.get("address", ""),
-                user.get("supervisor_id", ""),
-                user.get("bmo_id", "")
-            )
-            user["language"] = detected_lang
-        # Case 2: If user selected language → DO NOT override
-        # (Optional advanced: allow switching if user clearly changes language)
-        elif detected_lang != user["language"]:
-            # Only update if user is consistently using another language
-            # # (you can remove this block if you want strict locking)
-            pass
+        # ── Language change command ───────────────────────────────
+        # User can say "change language to Bengali" at any time
+        if incoming_msg.lower().startswith("change language"):
+            parts = incoming_msg.split("to", 1)
+            if len(parts) == 2:
+                new_lang = parts[1].strip().title()
+                save_patient(
+                    sender, user["name"], user["week"], "registered",
+                    new_lang,
+                    user.get("asha_id",       "default_asha"),
+                    user.get("village",       ""),
+                    user.get("address",       ""),
+                    user.get("supervisor_id", ""),
+                    user.get("bmo_id",        "")
+                )
+                msg.body(f"✅ Language updated to {new_lang}! 🌸")
+            else:
+                msg.body(
+                    "Please say: *change language to [language name]*\n"
+                    "Example: change language to Tamil"
+                )
+            return str(response)
 
         # ── Progress tracker ──────────────────────────────────────
         if is_tracker_request(incoming_msg):
@@ -752,38 +627,12 @@ def whatsapp_reply():
             )
             msg.body(reply)
             return str(response)
-        
-
-
-        #Visual Input --------------------
-        # ✅ Check if symptom is visual
-        if is_visual_symptom(incoming_msg):
-            save_patient(
-                sender, user["name"], user["week"],
-                "ask_image_permission",
-                user["language"],
-                user.get("asha_id", "default_asha"),
-                user.get("village", ""),
-                user.get("address", ""),
-                user.get("supervisor_id", ""),
-                user.get("bmo_id", "")
-                )
-            # store last symptom temporarily 
-            session["last_symptom"] = incoming_msg
-            msg.body(
-                "📸 Kya aap apni problem ka photo share karna chahengi?\n\n"
-                "1️⃣ Haan (Yes)\n"
-                "2️⃣ Nahi (No)" 
-                )
-            return str(response)
-
-
 
         # ── AI symptom analysis ───────────────────────────────────
-        # Route postpartum symptoms differently (Month 4)
         is_postpartum = user.get("status") == "postpartum"
         level, reply, alert_needed = analyze(
             incoming_msg, user["week"],
+            language=user.get("language", "Hindi"),
             postpartum=is_postpartum
         )
         save_symptom_log(sender, user["week"], incoming_msg, level)
@@ -821,7 +670,6 @@ def whatsapp_reply():
         msg.body("Namaste! 'Register' ya 'Hello' type karke shuru karein. 🌸")
 
     return str(response)
-
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -964,7 +812,6 @@ def log_visit(asha_id, alert_id):
                 alert_id, "Resolved",
                 notes=f"Referred to: {referred_to}" if referred_to else outcome
             )
-            # WhatsApp to patient
             send_whatsapp(
                 alert["phone"],
                 f"🌸 {alert['name']}, aapki ASHA worker ne aapko "
@@ -988,7 +835,6 @@ def log_anc(asha_id):
 
     if patient_phone:
         save_anc_record(patient_phone, visit_number, visit_date, asha_id, notes)
-        # Remind patient
         patient = get_patient(patient_phone)
         if patient:
             next_visit = {1:"14–16 weeks",2:"28–32 weeks",3:"36 weeks",4:"Delivery"}.get(visit_number + 1)
@@ -1086,8 +932,6 @@ def log_growth(asha_id, child_id):
     except ValueError:
         return redirect(f"/dashboard/{asha_id}?tab=postpartum")
 
-    # Simple WHO z-score approximation (weight-for-age)
-    # Reference median for boys, rough approximation
     who_medians = {0:3.3,1:4.5,2:5.6,3:6.4,4:7.0,5:7.5,6:7.9,
                    9:9.2,12:9.6,18:10.9,24:12.2,36:14.3}
     closest_age = min(who_medians.keys(), key=lambda x: abs(x - age_months))
@@ -1100,7 +944,6 @@ def log_growth(asha_id, child_id):
     save_growth_log(child_id, mother_phone, weight_kg, height_cm,
                     age_months, z_score, status)
 
-    # Alert ASHA if severe undernutrition
     if z_score < -2:
         asha_info = get_asha_by_phone(asha_id)
         if asha_info:
@@ -1150,7 +993,6 @@ def supervisor_dashboard(supervisor_id):
     alerts  = get_supervisor_alerts(supervisor_id)
     tab     = request.args.get("tab", "alerts")
 
-    # Build ASHA performance rows
     perf_rows = ""
     for a in ashas:
         rating = a.get("avg_response_hrs")
@@ -1282,17 +1124,16 @@ def supervisor_dashboard(supervisor_id):
     </div>
     <div class="panel" style="padding-top:16px">
         {"<div>" + alerts_html + "</div>" if tab == "alerts" else ""}
-        {f'''
+        {"""
         <div style="overflow-x:auto">
         <table>
             <thead><tr>
                 <th>Name</th><th>Village</th><th>Patients</th>
                 <th>Pending</th><th>Resolved</th><th>Avg Response</th><th></th>
             </tr></thead>
-            <tbody>{perf_rows}</tbody>
+            <tbody>""" + perf_rows + """</tbody>
         </table></div>
-        ''' if tab in ("ashas","performance") else ""
-        }
+        """ if tab in ("ashas","performance") else ""}
     </div>
     <div class="footer">MaaSakhi · <a href="/login">← Logout</a></div>
     </body></html>
@@ -1418,7 +1259,7 @@ def bmo_dashboard(bmo_id):
                 onclick="location='?tab=patients'">👥 Block Patients</button>
     </div>
     <div class="panel">
-        {"<div>" + (alerts_html or '<p style="color:#9ca3af;text-align:center;padding:30px">✅ No escalated alerts</p>') + "</div>"
+        {"<div>" + (alerts_html or '<p style=\"color:#9ca3af;text-align:center;padding:30px\">✅ No escalated alerts</p>') + "</div>"
          if tab == "alerts" else ""}
         {"<p style='color:#9ca3af;text-align:center;padding:30px'>Patient list — use admin panel for full view.</p>"
          if tab == "patients" else ""}
@@ -1594,7 +1435,6 @@ def admin_delete_bmo():
 # ── Month 3: Analytics API ────────────────────────────────────────
 @app.route("/admin/api/trends")
 def api_trends():
-    """JSON endpoint for district trend charts."""
     if "admin" not in session:
         return jsonify({"error": "unauthorized"}), 401
     days = int(request.args.get("days", 30))
@@ -1603,7 +1443,6 @@ def api_trends():
 
 @app.route("/admin/api/village-risks")
 def api_village_risks():
-    """JSON endpoint for village heatmap data."""
     if "admin" not in session:
         return jsonify({"error": "unauthorized"}), 401
     return jsonify(get_village_risk_scores())
@@ -1612,7 +1451,6 @@ def api_village_risks():
 # ── Month 3: NHM CSV Export ───────────────────────────────────────
 @app.route("/admin/export/nhm-csv")
 def export_nhm_csv():
-    """Export all patient data in NHM HMIS-compatible CSV format."""
     if "admin" not in session:
         return redirect("/admin/login")
 
@@ -1691,10 +1529,9 @@ def export_nhm_csv():
         return redirect("/admin?tab=analytics")
 
 
-# ── Month 3: Monthly PDF Report ──────────────────────────────────
+# ── Month 3: Monthly PDF Report ───────────────────────────────────
 @app.route("/admin/export/monthly-pdf")
 def export_monthly_pdf():
-    """Generate and download monthly PDF summary report."""
     if "admin" not in session:
         return redirect("/admin/login")
     try:
@@ -1714,33 +1551,23 @@ def export_monthly_pdf():
         return redirect("/admin?tab=analytics")
 
 
-# ── Month 2: Cron endpoint — auto escalation ─────────────────────
+# ── Month 2: Cron — auto escalation ──────────────────────────────
 @app.route("/cron/escalate")
 def cron_escalate():
-    """
-    Called by Railway / cron every 15 minutes.
-    Escalates alerts that have been Pending > 2 hours with no response.
-    Secure this with a secret header in production.
-    """
     cron_secret = os.environ.get("CRON_SECRET", "")
     if cron_secret and request.headers.get("X-Cron-Secret") != cron_secret:
         return jsonify({"error": "unauthorized"}), 401
-
     from escalation import run_escalation_check
     escalated = run_escalation_check()
     return jsonify({"escalated": escalated, "timestamp": datetime.now().isoformat()})
 
 
-# ── Month 4: Cron endpoint — postpartum / immunization reminders ──
+# ── Month 4: Cron — postpartum / immunization reminders ──────────
 @app.route("/cron/reminders")
 def cron_reminders():
-    """
-    Called daily. Sends PNC check-in reminders and immunization due alerts.
-    """
     cron_secret = os.environ.get("CRON_SECRET", "")
     if cron_secret and request.headers.get("X-Cron-Secret") != cron_secret:
         return jsonify({"error": "unauthorized"}), 401
-
     from reminders import send_pnc_reminders, send_immunization_reminders
     pnc_sent  = send_pnc_reminders()
     imm_sent  = send_immunization_reminders()
