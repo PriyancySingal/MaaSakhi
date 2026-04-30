@@ -598,7 +598,6 @@ def whatsapp_reply():
             return str(response)
 
         # ── Language change command ───────────────────────────────
-        # User can say "change language to Bengali" at any time
         if incoming_msg.lower().startswith("change language"):
             parts = incoming_msg.split("to", 1)
             if len(parts) == 2:
@@ -700,6 +699,8 @@ def login():
         else:
             error = "❌ Phone number not found. Please contact your admin."
 
+    error_html = "<div class='error'>" + error + "</div>" if error else ""
+
     return f"""
     <!DOCTYPE html><html><head><title>MaaSakhi Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -742,7 +743,7 @@ def login():
         <form method="POST">
             <input name="phone" placeholder="Enter your 10-digit mobile number"
                    pattern="[0-9+\\s-]{{10,14}}" required>
-            {"<div class='error'>" + error + "</div>" if error else ""}
+            {error_html}
             <button type="submit">Login →</button>
         </form>
         <a href="/" class="back">← Back to Home</a>
@@ -993,6 +994,7 @@ def supervisor_dashboard(supervisor_id):
     alerts  = get_supervisor_alerts(supervisor_id)
     tab     = request.args.get("tab", "alerts")
 
+    # ── Build performance table rows ──────────────────────────────
     perf_rows = ""
     for a in ashas:
         rating = a.get("avg_response_hrs")
@@ -1005,60 +1007,82 @@ def supervisor_dashboard(supervisor_id):
         else:
             rating_html = '<span style="color:#dc2626;font-weight:600">🔴 Slow</span>'
 
-        perf_rows += f"""
-        <tr>
-            <td style="padding:10px;font-weight:500">{a['name']}</td>
-            <td style="padding:10px">{a['village']}</td>
-            <td style="padding:10px;text-align:center">{a['patient_count']}</td>
-            <td style="padding:10px;text-align:center;color:#ef4444;font-weight:600">{a['pending_alerts']}</td>
-            <td style="padding:10px;text-align:center;color:#10b981;font-weight:600">{a['resolved_alerts']}</td>
-            <td style="padding:10px;text-align:center">{rating_html}</td>
-            <td style="padding:10px">
-                <a href="/dashboard/{a['asha_id']}" target="_blank"
-                   style="color:#0369A1;font-size:12px">View →</a>
-            </td>
-        </tr>
-        """
+        perf_rows += (
+            '<tr>'
+            f'<td style="padding:10px;font-weight:500">{a["name"]}</td>'
+            f'<td style="padding:10px">{a["village"]}</td>'
+            f'<td style="padding:10px;text-align:center">{a["patient_count"]}</td>'
+            f'<td style="padding:10px;text-align:center;color:#ef4444;font-weight:600">{a["pending_alerts"]}</td>'
+            f'<td style="padding:10px;text-align:center;color:#10b981;font-weight:600">{a["resolved_alerts"]}</td>'
+            f'<td style="padding:10px;text-align:center">{rating_html}</td>'
+            f'<td style="padding:10px">'
+            f'<a href="/dashboard/{a["asha_id"]}" target="_blank" style="color:#0369A1;font-size:12px">View →</a>'
+            '</td>'
+            '</tr>'
+        )
 
+    # ── Build alerts HTML ─────────────────────────────────────────
     alerts_html = ""
     for a in alerts:
-        maps_btn = (f'<a href="{a["maps_link"]}" target="_blank" '
-                    f'style="color:#0369A1;font-size:12px">📌 Navigate</a>'
-                    if a.get("maps_link") else "")
+        maps_btn = (
+            f'<a href="{a["maps_link"]}" target="_blank" style="color:#0369A1;font-size:12px">📌 Navigate</a>'
+            if a.get("maps_link") else ""
+        )
         esc_btn = ""
         if a["status"] == "Pending" and a.get("level", 0) < 2:
             esc_btn = (
-                f'<form method="POST" action="/supervisor/{supervisor_id}'
-                f'/escalate/{a["id"]}" style="display:inline">'
+                f'<form method="POST" action="/supervisor/{supervisor_id}/escalate/{a["id"]}" style="display:inline">'
                 '<button style="background:#dc2626;color:white;border:none;'
                 'padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer">'
                 '⬆ Escalate to BMO</button></form>'
             )
-        status_colour = {"Pending":"#dc2626","Attended":"#b45309","Resolved":"#16a34a"}.get(a["status"],"#888")
-        alerts_html += f"""
-        <div style="background:white;border-radius:12px;padding:14px;
-                    margin-bottom:10px;border-left:4px solid {status_colour}">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-                <strong>{a['name']}</strong>
-                <span style="font-size:11px;font-weight:700;color:{status_colour}">{a['status']}</span>
-            </div>
-            <div style="font-size:12.5px;color:#555;margin-top:4px">
-                Week {a['week']} · {a['symptom'][:60]}
-            </div>
-            <div style="font-size:11.5px;color:#888;margin-top:3px">
-                ASHA: {a.get('asha_name','—')} · {a.get('village','—')} · {a['time']}
-            </div>
-            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-                {maps_btn}{esc_btn}
-            </div>
-        </div>
-        """
+        status_colour = {
+            "Pending": "#dc2626",
+            "Attended": "#b45309",
+            "Resolved": "#16a34a"
+        }.get(a["status"], "#888")
+
+        alerts_html += (
+            f'<div style="background:white;border-radius:12px;padding:14px;'
+            f'margin-bottom:10px;border-left:4px solid {status_colour}">'
+            f'<div style="display:flex;justify-content:space-between;align-items:center">'
+            f'<strong>{a["name"]}</strong>'
+            f'<span style="font-size:11px;font-weight:700;color:{status_colour}">{a["status"]}</span>'
+            f'</div>'
+            f'<div style="font-size:12.5px;color:#555;margin-top:4px">'
+            f'Week {a["week"]} · {a["symptom"][:60]}'
+            f'</div>'
+            f'<div style="font-size:11.5px;color:#888;margin-top:3px">'
+            f'ASHA: {a.get("asha_name","—")} · {a.get("village","—")} · {a["time"]}'
+            f'</div>'
+            f'<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">'
+            f'{maps_btn}{esc_btn}'
+            f'</div>'
+            f'</div>'
+        )
 
     tab_style = lambda t: (
         "color:white;border-bottom:2px solid #4ade80;background:transparent"
         if t == tab else
         "color:rgba(255,255,255,0.6);border-bottom:2px solid transparent;background:transparent"
     )
+
+    # ── Pre-build conditional panels (avoids triple-quotes in f-string) ──
+    alerts_panel = f"<div>{alerts_html}</div>" if tab == "alerts" else ""
+
+    if tab in ("ashas", "performance"):
+        perf_panel = (
+            '<div style="overflow-x:auto">'
+            '<table>'
+            '<thead><tr>'
+            '<th>Name</th><th>Village</th><th>Patients</th>'
+            '<th>Pending</th><th>Resolved</th><th>Avg Response</th><th></th>'
+            '</tr></thead>'
+            '<tbody>' + perf_rows + '</tbody>'
+            '</table></div>'
+        )
+    else:
+        perf_panel = ""
 
     return f"""
     <!DOCTYPE html><html><head>
@@ -1123,17 +1147,8 @@ def supervisor_dashboard(supervisor_id):
                 onclick="location='?tab=performance'">📊 Performance</button>
     </div>
     <div class="panel" style="padding-top:16px">
-        {"<div>" + alerts_html + "</div>" if tab == "alerts" else ""}
-        {"""
-        <div style="overflow-x:auto">
-        <table>
-            <thead><tr>
-                <th>Name</th><th>Village</th><th>Patients</th>
-                <th>Pending</th><th>Resolved</th><th>Avg Response</th><th></th>
-            </tr></thead>
-            <tbody>""" + perf_rows + """</tbody>
-        </table></div>
-        """ if tab in ("ashas","performance") else ""}
+        {alerts_panel}
+        {perf_panel}
     </div>
     <div class="footer">MaaSakhi · <a href="/login">← Logout</a></div>
     </body></html>
@@ -1157,50 +1172,54 @@ def bmo_dashboard(bmo_id):
     alerts = get_bmo_alerts(bmo_id)
     tab    = request.args.get("tab", "alerts")
 
+    # ── Build alerts HTML ─────────────────────────────────────────
     alerts_html = ""
     for a in alerts:
-        maps_btn = (f'<a href="{a["maps_link"]}" target="_blank" '
-                    f'style="color:#B45309;font-size:12px">📌 Navigate</a>'
-                    if a.get("maps_link") else "")
-        alerts_html += f"""
-        <div style="background:white;border-radius:12px;padding:16px;
-                    margin-bottom:12px;border-left:4px solid #dc2626">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-                <strong>🚨 {a['name']}</strong>
-                <span style="font-size:11px;font-weight:700;color:#dc2626">ESCALATED</span>
-            </div>
-            <div style="font-size:13px;color:#555;margin-top:4px">
-                Week {a['week']} · {a['symptom'][:70]}
-            </div>
-            <div style="font-size:11.5px;color:#888;margin-top:3px">
-                ASHA: {a.get('asha_name','—')} · Village: {a.get('village','—')}
-            </div>
-            <div style="font-size:11.5px;color:#888">
-                Address: {a.get('address','—')} · 📞 {a['phone']} · {a['time']}
-            </div>
-            <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-                {maps_btn}
-                <form method="POST" action="/bmo/{bmo_id}/resolve/{a['id']}" style="display:inline">
-                    <button style="background:#085041;color:white;border:none;
-                                   padding:7px 14px;border-radius:7px;
-                                   font-size:12px;cursor:pointer">✅ Resolve</button>
-                </form>
-                <form method="POST" action="/bmo/{bmo_id}/escalate/{a['id']}" style="display:inline">
-                    <button style="background:#7C3AED;color:white;border:none;
-                                   padding:7px 14px;border-radius:7px;
-                                   font-size:12px;cursor:pointer">⬆ Escalate to DHO</button>
-                </form>
-                <a href="tel:{a['phone']}"
-                   style="display:inline-block;background:#8b5cf6;color:white;
-                          padding:7px 14px;border-radius:7px;font-size:12px;
-                          text-decoration:none">📞 Call Patient</a>
-            </div>
-        </div>
-        """
+        maps_btn = (
+            f'<a href="{a["maps_link"]}" target="_blank" style="color:#B45309;font-size:12px">📌 Navigate</a>'
+            if a.get("maps_link") else ""
+        )
+        alerts_html += (
+            '<div style="background:white;border-radius:12px;padding:16px;'
+            'margin-bottom:12px;border-left:4px solid #dc2626">'
+            '<div style="display:flex;justify-content:space-between;align-items:center">'
+            f'<strong>🚨 {a["name"]}</strong>'
+            '<span style="font-size:11px;font-weight:700;color:#dc2626">ESCALATED</span>'
+            '</div>'
+            f'<div style="font-size:13px;color:#555;margin-top:4px">Week {a["week"]} · {a["symptom"][:70]}</div>'
+            f'<div style="font-size:11.5px;color:#888;margin-top:3px">ASHA: {a.get("asha_name","—")} · Village: {a.get("village","—")}</div>'
+            f'<div style="font-size:11.5px;color:#888">Address: {a.get("address","—")} · 📞 {a["phone"]} · {a["time"]}</div>'
+            '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'
+            + maps_btn +
+            f'<form method="POST" action="/bmo/{bmo_id}/resolve/{a["id"]}" style="display:inline">'
+            '<button style="background:#085041;color:white;border:none;padding:7px 14px;border-radius:7px;font-size:12px;cursor:pointer">✅ Resolve</button>'
+            '</form>'
+            f'<form method="POST" action="/bmo/{bmo_id}/escalate/{a["id"]}" style="display:inline">'
+            '<button style="background:#7C3AED;color:white;border:none;padding:7px 14px;border-radius:7px;font-size:12px;cursor:pointer">⬆ Escalate to DHO</button>'
+            '</form>'
+            f'<a href="tel:{a["phone"]}" style="display:inline-block;background:#8b5cf6;color:white;padding:7px 14px;border-radius:7px;font-size:12px;text-decoration:none">📞 Call Patient</a>'
+            '</div>'
+            '</div>'
+        )
 
     tab_style = lambda t: (
         "color:white;border-bottom:2px solid #fbbf24" if t == tab
         else "color:rgba(255,255,255,0.6);border-bottom:2px solid transparent"
+    )
+
+    # ── Pre-build conditional panels ──────────────────────────────
+    if tab == "alerts":
+        alerts_panel = (
+            "<div>" +
+            (alerts_html or '<p style="color:#9ca3af;text-align:center;padding:30px">✅ No escalated alerts</p>') +
+            "</div>"
+        )
+    else:
+        alerts_panel = ""
+
+    patients_panel = (
+        '<p style="color:#9ca3af;text-align:center;padding:30px">Patient list — use admin panel for full view.</p>'
+        if tab == "patients" else ""
     )
 
     return f"""
@@ -1259,10 +1278,8 @@ def bmo_dashboard(bmo_id):
                 onclick="location='?tab=patients'">👥 Block Patients</button>
     </div>
     <div class="panel">
-        {"<div>" + (alerts_html or '<p style=\"color:#9ca3af;text-align:center;padding:30px\">✅ No escalated alerts</p>') + "</div>"
-         if tab == "alerts" else ""}
-        {"<p style='color:#9ca3af;text-align:center;padding:30px'>Patient list — use admin panel for full view.</p>"
-         if tab == "patients" else ""}
+        {alerts_panel}
+        {patients_panel}
     </div>
     <div class="footer">MaaSakhi BMO Dashboard · <a href="/login">← Logout</a></div>
     <script>setTimeout(()=>location.reload(),30000);</script>
