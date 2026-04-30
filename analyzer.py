@@ -2,7 +2,7 @@
 # MaaSakhi Symptom Analyzer
 # Powered by Groq AI (Llama 3.3) — FREE, fast, no credit card
 # Backed by WHO + NHM + FOGSI medical guidelines
-# Language-locked: always replies in the SAME language as input
+# Language: uses user's chosen language, falls back to auto-detect
 # ─────────────────────────────────────────────────────────────────
 
 import os
@@ -16,14 +16,14 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
 # ─────────────────────────────────────────────────────────────────
 # LANGUAGE DETECTION
-# Checks Unicode script first (most reliable)
-# then falls back to Hinglish keyword detection
+# Only used as fallback when user hasn't set a language preference
 # ─────────────────────────────────────────────────────────────────
 
 def detect_language_from_text(text):
     """
-    Detects the language from actual message content.
-    Unicode script ranges are checked first — most reliable.
+    Detects language from message content.
+    Used ONLY as fallback when user hasn't set a preferred language.
+    Unicode script ranges checked first — most reliable.
     Falls back to Hinglish keyword detection for Roman-script Hindi.
     """
 
@@ -45,6 +45,10 @@ def detect_language_from_text(text):
             return "Punjabi"
         elif '\u0D00' <= char <= '\u0D7F':
             return "Malayalam"
+        elif '\u0B00' <= char <= '\u0B7F':
+            return "Odia"
+        elif '\u0A80' <= char <= '\u0AFF':
+            return "Gujarati"
 
     # Hinglish — Hindi typed in Roman script
     hinglish_words = [
@@ -75,13 +79,14 @@ def detect_language_from_text(text):
 
 # ─────────────────────────────────────────────────────────────────
 # LANGUAGE-SPECIFIC RESPONSE TEMPLATES
-# Used in rule-based fallback only
+# Used in rule-based fallback only (when Groq is unavailable)
 # ─────────────────────────────────────────────────────────────────
 
 def get_response_template(level, language, pregnancy_week):
     """
     Returns warm fallback response in the correct language.
     Only used when Groq AI is unavailable.
+    For languages not in the template dict, defaults to English.
     """
 
     templates = {
@@ -103,6 +108,24 @@ def get_response_template(level, language, pregnancy_week):
                 f"✅ Week {pregnancy_week} mein yeh aam taur par normal hai. "
                 f"Aaram karein, paani piyen, aur iron ki goli lena mat bhoolein. "
                 f"Aap aur aapka baby dono safe hain — main hamesha yahan hoon! 💚"
+            ),
+        },
+        "Hinglish": {
+            "RED": (
+                f"⚠️ Yeh symptom bahut serious hai! WHO guidelines ke "
+                f"anusaar week {pregnancy_week} mein yeh ek danger sign hai. "
+                f"Please turant nearest health centre jaao — wait mat karo. "
+                f"Aapki ASHA worker ko alert kar diya gaya hai. 🙏"
+            ),
+            "AMBER": (
+                f"🟡 Week {pregnancy_week} mein yeh symptom dhyan dene wala hai. "
+                f"Please rest karo aur paani piyo. "
+                f"24 hours mein apni ASHA worker ko batao. 💛"
+            ),
+            "GREEN": (
+                f"✅ Week {pregnancy_week} mein yeh normal hai. "
+                f"Rest karo, paani piyo, aur iron tablet lena mat bhoolo. "
+                f"Tum aur tumhara baby safe hain! 💚"
             ),
         },
         "English": {
@@ -189,7 +212,7 @@ def get_response_template(level, language, pregnancy_week):
 
 # ─────────────────────────────────────────────────────────────────
 # SYSTEM PROMPT — AI Brain
-# Language rule is injected dynamically per request (see below)
+# Language rule is injected dynamically per request
 # ─────────────────────────────────────────────────────────────────
 
 BASE_SYSTEM_PROMPT = """You are MaaSakhi — an AI-powered maternal health
@@ -237,27 +260,34 @@ def build_prompt_with_language(language):
     """
     Injects a hard language instruction at the TOP of the prompt.
     Putting it first makes Groq treat it as highest priority.
+    Supports ANY language the user types — not just a fixed list.
     """
     lang_lock = f"""
 ══════════════════════════════════════════
 LANGUAGE INSTRUCTION — MANDATORY — HIGHEST PRIORITY
 ══════════════════════════════════════════
-The user is writing in: {language}
+The user's preferred language is: {language}
 
 YOU MUST:
 ✅ Write your ENTIRE response in {language} only.
 ✅ Every single word in MESSAGE must be in {language}.
-✅ If {language} is Hindi — use Hindi or Hinglish (Hindi + English mix).
-✅ If {language} is English — use English only.
-✅ If {language} is Tamil — use Tamil only.
-✅ If {language} is Telugu — use Telugu only.
-✅ If {language} is Bengali — use Bengali only.
+✅ This applies to ALL Indian and world languages —
+   Hindi, English, Hinglish, Tamil, Telugu, Bengali,
+   Marathi, Gujarati, Odia, Punjabi, Urdu, Kannada,
+   Malayalam, Assamese, Maithili, Bhojpuri, Rajasthani,
+   Konkani, Manipuri, Sindhi, Dogri, Kashmiri, Santali,
+   and any other language the user has chosen.
+✅ If {language} is Hinglish — use Hindi words in Roman
+   script (e.g. "Aapko doctor ke paas jana chahiye").
+✅ If {language} has its own script — use that script.
+✅ If {language} is less common and you are unsure of the
+   script — transliterate into Roman script in that language
+   rather than switching to Hindi or English.
 
 YOU MUST NOT:
-❌ Switch to a different language mid-response.
-❌ Use English when the user wrote in Hindi.
-❌ Use Hindi when the user wrote in English.
-❌ Mix languages unless user already mixed them (Hinglish).
+❌ Switch to English or Hindi because the language is less common.
+❌ Mix in another language unless the user themselves mixed it.
+❌ Ignore this instruction for any reason whatsoever.
 
 This language rule overrides everything else.
 ══════════════════════════════════════════
@@ -270,12 +300,13 @@ This language rule overrides everything else.
 # MAIN ANALYZE FUNCTION
 # ─────────────────────────────────────────────────────────────────
 
-def analyze(message, pregnancy_week):
+def analyze(message, pregnancy_week, language=None, postpartum=False):
     """
     Main entry point.
-    1. Detects language from message.
-    2. Calls Groq AI with language-locked prompt.
-    3. Falls back to rule-based if AI fails.
+    1. Uses user's saved language preference if provided.
+    2. Falls back to auto-detecting language from message.
+    3. Calls Groq AI with language-locked prompt.
+    4. Falls back to rule-based if AI fails.
     Returns: (level, response_message, asha_alert_needed)
     """
 
@@ -284,8 +315,6 @@ def analyze(message, pregnancy_week):
     # ── Step 1: Rule-based myth check (fast, no AI needed) ───────
     for keyword, data in PREGNANCY_MYTHS.items():
         if keyword in text:
-            # Myth responses stay in Hindi/Hinglish (they are
-            # myth-correction content — culturally specific)
             response = (
                 f"ℹ️ Yeh ek common myth hai!\n\n"
                 f"Myth: {data['myth']}\n\n"
@@ -295,9 +324,12 @@ def analyze(message, pregnancy_week):
             )
             return "MYTH", response, "NO"
 
-    # ── Step 2: Detect language ───────────────────────────────────
-    language = detect_language_from_text(message)
-    print(f"[Language detected: {language}] for message: {message[:50]}")
+    # ── Step 2: Use user's saved language OR auto-detect ─────────
+    if not language:
+        language = detect_language_from_text(message)
+        print(f"[Language detected: {language}] for message: {message[:50]}")
+    else:
+        print(f"[Language from profile: {language}] for message: {message[:50]}")
 
     # ── Step 3: Try Groq AI with language-locked prompt ──────────
     try:
@@ -308,7 +340,7 @@ def analyze(message, pregnancy_week):
         chat = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             max_tokens=350,
-            temperature=0.2,       # Lower = more consistent formatting
+            temperature=0.2,
             messages=[
                 {
                     "role": "system",
@@ -318,9 +350,14 @@ def analyze(message, pregnancy_week):
                     "role": "user",
                     "content": (
                         f"Pregnant woman, week {pregnancy_week}.\n"
-                        f"She wrote in {language}.\n"
+                        f"Her preferred language is: {language}.\n"
                         f"Her message: '{message}'\n\n"
-                        f"Remember: Reply ONLY in {language}."
+                        f"IMPORTANT: Your entire MESSAGE field must be "
+                        f"written in {language} only. "
+                        f"This includes all Indian regional languages — "
+                        f"Odia, Bhojpuri, Assamese, Maithili, Urdu, "
+                        f"Marathi, Gujarati, Punjabi, and any other language. "
+                        f"Do NOT switch to English or Hindi."
                     )
                 }
             ]
@@ -348,7 +385,6 @@ def analyze(message, pregnancy_week):
             lines = result.split("\n")
             for i, line in enumerate(lines):
                 if "MESSAGE:" in line:
-                    # Grab this line + next lines until ASHA_ALERT
                     msg_parts = [line.replace("MESSAGE:", "").strip()]
                     for j in range(i + 1, len(lines)):
                         if lines[j].startswith("ASHA_ALERT:"):
@@ -377,13 +413,12 @@ def analyze(message, pregnancy_week):
 # ─────────────────────────────────────────────────────────────────
 # RULE-BASED FALLBACK
 # Used only when Groq AI is unavailable
-# Responds in the detected language
 # ─────────────────────────────────────────────────────────────────
 
 def rule_based_analyze(message, pregnancy_week, language="English"):
     """
     Backup rule-based analyzer using WHO + NHM symptom lists.
-    Uses the detected language for responses.
+    Uses the user's saved language for responses.
     """
 
     text = message.lower().strip()
