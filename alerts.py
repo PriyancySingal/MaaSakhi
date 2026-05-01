@@ -39,12 +39,20 @@ def send_whatsapp_alert(name, week, symptom, phone, asha_number,
             f"{'📌 Navigate to patient: ' + maps_link if maps_link else ''}\n\n"
             f"Please contact her immediately!"
         )
-
+        #Correction
+        formatted_number = f"whatsapp:{asha_number.replace('whatsapp:', '')}"
+        print("Sending to:", formatted_number)
         message = client.messages.create(
             from_=TWILIO_WHATSAPP_NUMBER,
-            to=asha_number,
-            body=alert_message
-        )
+            to=formatted_number,
+            body=alert_message)
+        #corrected
+
+        # message = client.messages.create(
+        #     from_=TWILIO_WHATSAPP_NUMBER,
+        #     to=asha_number,
+        #     body=alert_message
+        # )
 
         print(f"WhatsApp alert sent to {asha_number}! SID: {message.sid}")
         return True
