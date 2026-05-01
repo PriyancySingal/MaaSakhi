@@ -108,6 +108,7 @@ def send_whatsapp(to, body):
 
 
 
+
 HOMEPAGE_HTML = """
 <!DOCTYPE html>
 <html lang="en">
@@ -139,8 +140,32 @@ HOMEPAGE_HTML = """
         .btn-secondary{background:rgba(255,255,255,0.1);color:white;border:1px solid rgba(255,255,255,0.3)}
         .btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.15)}
 
-        .trust{text-align:center;padding:30px;background:#fff;font-size:13px;color:#64748b;border-bottom:1px solid #e2e8f0}
-        .trust span{margin:0 15px;display:inline-block}
+        /* NEW: Live Headline Ticker */
+        .trust-slider {
+            background: #fff;
+            border-bottom: 1px solid #e2e8f0;
+            overflow: hidden;
+            white-space: nowrap;
+            padding: 15px 0;
+            display: flex;
+        }
+        .ticker-wrap {
+            display: inline-block;
+            animation: ticker 25s linear infinite;
+        }
+        .ticker-item {
+            display: inline-block;
+            padding: 0 40px;
+            font-size: 13px;
+            color: #64748b;
+            font-weight: 500;
+        }
+        .ticker-item b { color: #085041; }
+
+        @keyframes ticker {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
 
         /* Portals */
         .portal-section{padding:80px 8%;max-width:1300px;margin:auto}
@@ -148,20 +173,32 @@ HOMEPAGE_HTML = """
         .section-title h2{font-size:28px;color:#085041}
         .portal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:25px}
         .portal-card{background:white;padding:35px 25px;border-radius:20px;text-align:center;
-                     box-shadow:0 10px 25px rgba(0,0,0,0.04);border-top:5px solid #085041;transition:0.3s}
-        .portal-card:hover{transform:translateY(-5px)}
+                     box-shadow:0 10px 25px rgba(0,0,0,0.04);border-top:5px solid #085041;transition:0.4s ease}
+        
+        /* Animation: Hover lift and glow */
+        .portal-card:hover{transform:translateY(-10px);box-shadow:0 15px 35px rgba(8,80,65,0.15)}
+        
         .portal-card h3{font-size:17px;margin:15px 0 10px;color:#085041}
         .portal-card p{font-size:13px;color:#64748b;margin-bottom:20px;height:40px}
         .portal-card a{display:block;padding:10px;border-radius:8px;text-decoration:none;
-                       background:#085041;color:white;font-size:14px;font-weight:600}
+                       background:#085041;color:white;font-size:14px;font-weight:600;transition:0.3s}
+        .portal-card a:hover { opacity: 0.9; letter-spacing: 0.5px; }
 
-        /* How it Works - Professional Alignment */
+        /* How it Works */
         .how-it-works{background:#f1f5f9;padding:80px 8%}
         .flow-container{display:flex;justify-content:space-between;max-width:1100px;margin:50px auto 0;position:relative}
         .flow-step{flex:1;text-align:center;padding:0 15px;position:relative;z-index:2}
         .step-circle{width:50px;height:50px;background:#085041;color:white;border-radius:50%;
                      display:flex;align-items:center;justify-content:center;margin:0 auto 20px;
-                     font-weight:600;box-shadow:0 0 0 8px rgba(8,80,65,0.1)}
+                     font-weight:600;box-shadow:0 0 0 8px rgba(8,80,65,0.1);
+                     animation: pulse-green 2s infinite;}
+        
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0px rgba(8, 80, 65, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(8, 80, 65, 0); }
+            100% { box-shadow: 0 0 0 0px rgba(8, 80, 65, 0); }
+        }
+
         .flow-step h3{font-size:15px;margin-bottom:8px;color:#085041}
         .flow-step p{font-size:12px;color:#64748b}
         .flow-line{position:absolute;top:25px;left:10%;right:10%;height:2px;background:#cbd5e1;z-index:1}
@@ -214,8 +251,21 @@ HOMEPAGE_HTML = """
     </div>
 </div>
 
-<div class="trust">
-    <span>🛡 WHO Protocols</span><span>📋 NHM Integration</span><span>🌍 100+ Languages</span><span>🚨 Zero Delay Logic</span>
+<!-- Updated: Live Ticker Slider -->
+<div class="trust-slider">
+    <div class="ticker-wrap">
+        <span class="ticker-item">🛡️ <b>STATUS:</b> WHO Protocols Active</span>
+        <span class="ticker-item">📋 <b>INTEGRATION:</b> NHM Guidelines Synced</span>
+        <span class="ticker-item">🌍 <b>LANGUAGE:</b> 100+ Regional Dialects Live</span>
+        <span class="ticker-item">🚨 <b>ALERTS:</b> Zero Delay Logic Enabled</span>
+        <span class="ticker-item">⚡ <b>AI:</b> Real-time Groq Triage Active</span>
+        <!-- Duplicated for seamless loop -->
+        <span class="ticker-item">🛡️ <b>STATUS:</b> WHO Protocols Active</span>
+        <span class="ticker-item">📋 <b>INTEGRATION:</b> NHM Guidelines Synced</span>
+        <span class="ticker-item">🌍 <b>LANGUAGE:</b> 100+ Regional Dialects Live</span>
+        <span class="ticker-item">🚨 <b>ALERTS:</b> Zero Delay Logic Enabled</span>
+        <span class="ticker-item">⚡ <b>AI:</b> Real-time Groq Triage Active</span>
+    </div>
 </div>
 
 <div class="how-it-works">
@@ -305,6 +355,7 @@ HOMEPAGE_HTML = """
 </body>
 </html>
 """
+
 
 
 
