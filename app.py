@@ -574,7 +574,7 @@ def whatsapp_reply():
                          user.get("language", "Hindi"))
             msg.body(
                 "Shukriya! 🌸\n\nAap kis gaon mein rehti hain?\n"
-                "Which village do you live in?\n\nExample: Rampur"
+                "Which village do you live in?\n\nExample: Rampur Khera"
             )
         except ValueError:
             msg.body("Sirf number bhejiye. Example: 26")
@@ -596,7 +596,7 @@ def whatsapp_reply():
             f"Shukriya {user['name']}! 🌸\n\n"
             "Ab apna ghar ka address batao —\n"
             "gali, mohalla ya koi pehchaan ki jagah.\n\n"
-            "Example: Near Govt School, Ward 4, Rampur\n\n"
+            "Example: Near Govt School, Ward 4, Rampur Khera\n\n"
             "(Yeh ASHA worker ko emergency mein dhundhne mein madad karega 🏥)"
         )
 
