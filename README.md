@@ -3,7 +3,7 @@
 > **माँ की सखी** — Mother's Friend
 > An AI-powered WhatsApp bot that gives every rural pregnant woman a knowledgeable health companion available 24/7 in her own language.
 
-**Live URL:** `maasakhi-production.up.railway.app`
+**Live URL:** `maasakhi-production-2116.up.railway.app`
 **WhatsApp Bot:** `+1 415 523 8886` (send `join kitchen-highest`)
 **GitHub:** `github.com/PriyancySingal/MaaSakhi`
 
